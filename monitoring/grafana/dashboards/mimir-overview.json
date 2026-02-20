@@ -52,9 +52,9 @@
     },
     {
       "title": "Active Time",
-      "description": "Total active time across sessions. Metric name may include unit suffix -- check Prometheus for exact name if panel is empty.",
+      "description": "Total active time across sessions.",
       "type": "stat",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 8 },
       "targets": [
         {
           "expr": "sum({__name__=~\"claude_code_active_time_total.*\"})",
@@ -68,9 +68,48 @@
       }
     },
     {
+      "title": "Lines of Code",
+      "description": "Total lines of code modified (added + removed) over the selected time range.",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum({__name__=~\"claude_code_lines_of_code.*\"})",
+          "legendFormat": "Total",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        }
+      }
+    },
+    {
+      "title": "Cost per Model",
+      "description": "Total cost by model over the selected time range.",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (model) (claude_code_cost_usage_USD_total)",
+          "legendFormat": "{{model}}",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" },
+        "overrides": []
+      }
+    },
+    {
       "title": "Cost by Session",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
       "targets": [
         {
           "expr": "sum by (session_id) (claude_code_cost_usage_USD_total)",
@@ -80,6 +119,203 @@
       ],
       "fieldConfig": {
         "defaults": { "unit": "currencyUSD" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Lines Added vs Removed",
+      "description": "Lines of code added vs removed over time.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum by (type) ({__name__=~\"claude_code_lines_of_code.*\"})",
+          "legendFormat": "{{type}}",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Sessions / Commits / PRs",
+      "description": "Count of sessions, commits, and PRs created.",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "targets": [
+        {
+          "expr": "sum({__name__=~\"claude_code_session_count.*\"})",
+          "legendFormat": "Sessions",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum({__name__=~\"claude_code_commit_count.*\"})",
+          "legendFormat": "Commits",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum({__name__=~\"claude_code_pull_request_count.*\"})",
+          "legendFormat": "PRs",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "title": "Per Agent",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "collapsed": false
+    },
+    {
+      "title": "Tokens per Agent",
+      "description": "Token usage by session. Each agent teammate runs as a separate session. Use model to distinguish agent roles (haiku = Enhancer, sonnet = Orienter/Planner/Implementer/Lead).",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum by (session_id, model) (claude_code_token_usage_tokens_total)",
+          "legendFormat": "{{session_id}} ({{model}})",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Active Time per Agent",
+      "description": "Active time by session. Each agent teammate has its own session_id.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum by (session_id) ({__name__=~\"claude_code_active_time_total.*\"})",
+          "legendFormat": "{{session_id}}",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Tool Calls per Agent",
+      "description": "Tool call count by session and tool name. Sourced from Loki events (claude_code.tool_result). If empty, check that the logs pipeline is running and events are flowing to Loki.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
+      "targets": [
+        {
+          "expr": "sum by (session_id, tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__auto]))",
+          "legendFormat": "{{session_id}} / {{tool_name}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "title": "Tool Execution",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "collapsed": false
+    },
+    {
+      "title": "Tool Execution Duration",
+      "description": "Average tool execution duration by tool name. Sourced from Loki events (claude_code.tool_result, duration_ms attribute). This data is NOT in Prometheus -- it flows via the OTel logs protocol to Loki.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "targets": [
+        {
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json | unwrap duration_ms [$__auto]) by (tool_name)",
+          "legendFormat": "{{tool_name}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Tool Call Count by Name",
+      "description": "Total tool calls by tool name. This is the 'per skill' view -- each tool maps to an agent action. Sourced from Loki events.",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 34 },
+      "targets": [
+        {
+          "expr": "sum by (tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__range]))",
+          "legendFormat": "{{tool_name}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "title": "Tool Success Rate",
+      "description": "Tool success vs failure count. Sourced from Loki events.",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 34 },
+      "targets": [
+        {
+          "expr": "sum by (success) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__range]))",
+          "legendFormat": "success={{success}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
+    },
+    {
+      "title": "API Performance",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "collapsed": false
+    },
+    {
+      "title": "API Request Duration by Model",
+      "description": "Average API request duration by model. Sourced from Loki events (claude_code.api_request).",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "targets": [
+        {
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap duration_ms [$__auto]) by (model)",
+          "legendFormat": "{{model}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Tokens per API Request",
+      "description": "Input and output tokens per API request by model. Sourced from Loki events.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "targets": [
+        {
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap input_tokens [$__auto]) by (model)",
+          "legendFormat": "input ({{model}})",
+          "datasource": { "type": "loki", "uid": "loki" }
+        },
+        {
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap output_tokens [$__auto]) by (model)",
+          "legendFormat": "output ({{model}})",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
         "overrides": []
       }
     }
