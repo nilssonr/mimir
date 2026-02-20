@@ -1,0 +1,10 @@
+{
+  "name": "mimir",
+  "description": "Memory-first agent orchestration. The lead coordinates, teammates execute, shared memory persists knowledge across sessions.",
+  "version": "0.1.0",
+  "author": {
+    "name": "nilssonr"
+  },
+  "repository": "https://github.com/nilssonr/mimir",
+  "license": "MIT"
+}
