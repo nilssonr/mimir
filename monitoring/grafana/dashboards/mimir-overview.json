@@ -219,7 +219,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
       "targets": [
         {
-          "expr": "sum by (session_id, tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__auto]))",
+          "expr": "sum by (session_id, tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__auto]))",
           "legendFormat": "{{session_id}} / {{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -238,7 +238,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json | unwrap duration_ms [$__auto]) by (tool_name)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | unwrap duration_ms [$__auto]) by (tool_name)",
           "legendFormat": "{{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -255,7 +255,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 34 },
       "targets": [
         {
-          "expr": "sum by (tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__range]))",
+          "expr": "sum by (tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__range]))",
           "legendFormat": "{{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -268,7 +268,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 34 },
       "targets": [
         {
-          "expr": "sum by (success) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | json [$__range]))",
+          "expr": "sum by (success) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__range]))",
           "legendFormat": "success={{success}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -287,7 +287,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap duration_ms [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap duration_ms [$__auto]) by (model)",
           "legendFormat": "{{model}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -304,12 +304,12 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap input_tokens [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap input_tokens [$__auto]) by (model)",
           "legendFormat": "input ({{model}})",
           "datasource": { "type": "loki", "uid": "loki" }
         },
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | json | unwrap output_tokens [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap output_tokens [$__auto]) by (model)",
           "legendFormat": "output ({{model}})",
           "datasource": { "type": "loki", "uid": "loki" }
         }
