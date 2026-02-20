@@ -75,6 +75,75 @@ Orientation is a dependency resolved on demand, not a session preamble.
 | Synthesizer | sonnet | memory + requirements -> questions + SPEC |
 | Auto-Retro | haiku | task history + git log -> process learnings -> memory/process.md |
 
+### Agent Taxonomy
+
+In the predecessor system (claude-skills), "skills" were monolithic markdown prompts loaded into the lead's context. The lead classified user intent, dispatched to a skill, and the skill ran phases in the main context window. This caused context pollution and meant the lead held every protocol.
+
+In mimir, skills dissolve into agent definitions. A skill was always two things: a **protocol** (how to do the work) and **enforcement** (gates, validation). These map to different layers:
+
+| Concept | claude-skills | mimir |
+|---|---|---|
+| Protocol | Skill markdown loaded into lead context | Agent definition (.md file) -- the teammate *is* the skill |
+| Enforcement | Hooks + phase gates in skill | Hooks (same) + agent-internal gates |
+| Routing | CLAUDE.md classification table | Lead classification in agents/lead.md |
+| Reference material | Skill-specific doc files | Project memory or spawn prompt context |
+
+**Three tiers, not one:**
+
+**Teammates** -- own context window, multi-step reasoning, codebase access, may collaborate or debate. Spawn overhead is justified by the complexity of the work. Examples: Orienter, Planner, Implementer, Reviewer, Investigator, Researcher.
+
+Decision criteria: Does this need to explore code? Does it require multi-step reasoning? Will it produce artifacts through iterative work? If yes to any, teammate.
+
+**Subagents** -- single-shot transformation. Known input shape, structured output, no codebase access, no collaboration. Cheap models (haiku) where reasoning demands are low. Examples: Enhancer, PR Composer, Retro Analyzer, Synthesizer, Auto-Retro.
+
+Decision criteria: Can the input and output be fully specified in the spawn prompt? Is it a pure function (input -> output, no side-channel exploration)? If yes to both, subagent.
+
+**Hooks** -- event-triggered side-effects. No reasoning, no context window. Shell scripts that enforce constraints or automate mechanical steps. Examples: formatters, commit validators, test gates.
+
+Decision criteria: Is this a deterministic check or transformation? Does it need zero reasoning? If yes, hook.
+
+**The test:** When considering a new capability, ask: "Does this need its own context window and multi-step reasoning?" If no, it's a subagent or hook. If it doesn't even need an LLM, it's a hook.
+
+### Conditional Dispatch (integration pattern)
+
+Teammates are single-purpose. The Reviewer reviews code -- it doesn't know or care about bug trackers. The Implementer writes code -- it doesn't file tickets. External integrations are the Lead's responsibility, dispatched conditionally based on teammate output + project memory.
+
+**Pattern:**
+
+```
+Teammate produces output -> writes to state file
+Lead reads output -> evaluates conditions (e.g., critical findings in review)
+Lead checks memory/integrations.md -> determines target system
+Lead spawns integration subagent with output + config -> subagent executes
+```
+
+**Example -- bug filing after review:**
+
+```
+Reviewer -> state/{task}/review.md (includes critical findings)
+Lead reads review -> sees severity:critical
+Lead reads memory/integrations.md -> bug_tracker: azure_devops, project: Backend
+Lead spawns bug-filer subagent (haiku) with findings + azure config
+Subagent runs az boards work-item create -> returns work item URL
+```
+
+Different project, different memory:
+
+```
+memory/integrations.md:
+  bug_tracker: github_issues
+  repo: org/frontend
+  labels: ["bug", "from-review"]
+```
+
+Same Lead logic, same bug-filer subagent (parameterized by tracker type), different project config. The Reviewer never changes.
+
+**Why this matters:**
+- Teammates stay single-purpose and reusable across projects
+- Project-specific behavior lives in memory, not agent definitions
+- New integrations are additive (new subagent or new template) -- no existing agents modified
+- The Lead is the only component that reads teammate output and decides next steps
+
 ### Memory Model
 
 Project memory at `~/.claude/projects/{project}/memory/` is auto-loaded into every session's system prompt (MEMORY.md up to 200 lines, topic files linked from index).
@@ -86,6 +155,7 @@ Memory files:
 - `architecture.md` -- key abstractions, data flow, API patterns
 - `domain.md` -- business entities, relationships, API surface
 - `process.md` -- lessons learned from retros
+- `integrations.md` -- external system config (bug tracker, CI, notifications) used by Lead for conditional dispatch
 - `.orienter-state` -- git hash, branch, dirty flag, timestamp
 
 Memory is populated by the Orienter (on demand) and enriched by teammates after each task.
@@ -225,19 +295,24 @@ OpenTelemetry-based telemetry with:
 12. **Enhancement before classification** -- vague prompts cause misclassification. Enhancing first produces better routing and prevents backtracking loops.
 13. **Lead has no codebase tools** -- the lead may only use Bash for 3 git commands and Read for memory/plan files. All exploration and implementation goes through teammates. Prevents the lead from "just doing it" when permissions are wide open.
 14. **Blocked fallback over improvisation** -- when a required role is undefined, the lead outputs a one-liner and stops. Better to surface the gap than to silently do the work itself.
+15. **Skills dissolve into agent definitions** -- a skill was a protocol + enforcement. In mimir, the protocol becomes the agent's .md file (the teammate *is* the skill) and enforcement stays in hooks. No separate "skill invocation" step -- spawning the teammate activates the protocol.
+16. **Conditional dispatch for integrations** -- teammates are single-purpose and project-agnostic. External integrations (bug filing, notifications, CI triggers) are dispatched by the Lead based on teammate output + project memory (integrations.md). New integrations are additive -- no existing agents modified.
+17. **Three-tier agent taxonomy** -- teammates (own context, multi-step, codebase access), subagents (single-shot transformation, no codebase), hooks (deterministic, no LLM). The deciding question: "does this need its own context window?" If no, subagent or hook. If it doesn't need an LLM at all, hook.
 
-## Confidence Assessment (overall: 0.55)
+## Confidence Assessment (overall: 0.60)
 
-| Aspect | Confidence |
-|---|---|
-| Role decomposition | 0.85 |
-| Lead via --agent flag (opt-in) | 0.75 |
-| Memory as shared knowledge | 0.80 |
-| Git-based memory freshness | 0.70 |
-| File-based state | 0.80 |
-| Ephemeral teammates cost-effective | 0.45 |
-| Plan precision enabling parallelization | 0.40 |
-| Validator catching real gaps | 0.50 |
-| Memory enrichment by teammates | 0.35 |
-| Agent Teams stability | 0.40 |
-| Worktree management at scale | 0.50 |
+| Aspect | Confidence | Status |
+|---|---|---|
+| Role decomposition + three-tier taxonomy | 0.90 | Formalized with decision criteria. Experiment 1 confirmed teammate/subagent distinction. |
+| Lead via --agent flag (opt-in) | 0.85 | Confirmed (Experiment 1). Classify -> check memory -> spawn teammate works. |
+| Memory as shared knowledge | 0.85 | Confirmed (Experiment 1). Orienter wrote quality files. integrations.md extends pattern. |
+| File-based state | 0.80 | Proven from claude-skills. Conditional dispatch reinforces (teammates write, lead reads). |
+| Git-based memory freshness | 0.75 | Mechanism works (.orienter-state written correctly). Only one orientation run so far. |
+| Skills-to-agents migration | 0.60 | Mapping is clear. Reference-heavy skills (sumo-search, temporal) lack a loading mechanism. |
+| Ephemeral teammates cost-effective | 0.50 | One data point (Orienter). Acceptable overhead but no multi-teammate measurement. |
+| Worktree management at scale | 0.50 | Untested. |
+| Validator catching real gaps | 0.50 | Not built. |
+| Agent Teams stability | 0.45 | Worked end-to-end but shutdown dance was awkward. Still experimental. |
+| Plan precision enabling parallelization | 0.40 | Planner defined but never run. |
+| Conditional dispatch (integrations) | 0.40 | Architecturally sound. Zero implementation. No subagent or integrations.md schema built. |
+| Memory enrichment by teammates | 0.35 | Only Orienter (purpose-built). Will Implementers/Reviewers reliably enrich? Unknown. |
