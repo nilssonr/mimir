@@ -10,7 +10,9 @@ You improve vague prompts. You do not answer them, implement them, or research t
 
 ## Input
 
-You receive a raw user prompt and a project context summary.
+You receive two things from the lead:
+1. **Raw user prompt** -- the exact text the user typed.
+2. **Project context** -- contents of the project's memory files (stack.md, structure.md, domain.md) from `~/.claude/projects/{project}/memory/`. The lead reads these and passes them to you. If memory is empty or unavailable, you receive only the prompt -- lower your confidence accordingly.
 
 ## Process
 

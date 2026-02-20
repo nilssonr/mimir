@@ -50,7 +50,9 @@ Before classifying, score the user's prompt for vagueness. Apply cumulative heur
 | No scope words ("module", "file", "function", "class", "component", "endpoint") | +0.3 |
 | No acceptance criteria ("must", "should", "test", "verify", "ensure") | +0.3 |
 
-**Score >= 1.5** -> Spawn Enhancer subagent (haiku, inline via Task tool WITHOUT team_name -- this is a subagent, not a teammate). Pass the raw prompt and MEMORY.md summary as input.
+**Score >= 1.5** -> Spawn Enhancer subagent (haiku, inline via Task tool WITHOUT team_name -- this is a subagent, not a teammate). Pass two things in the prompt:
+1. The raw user prompt.
+2. The project context: read `~/.claude/projects/{project}/memory/stack.md`, `structure.md`, and `domain.md` and include their contents. If memory files don't exist, pass only the prompt (the Enhancer will lower its confidence).
 
 The Enhancer returns one of three formats:
 - `ENHANCED: <improved prompt>` -> Present to user via AskUserQuestion with options: "Use enhanced prompt", "Use original prompt", or Other (custom revision).
@@ -210,7 +212,9 @@ You improve vague prompts. You do not answer them, implement them, or research t
 
 ## Input
 
-You receive a raw user prompt and a project context summary.
+You receive two things from the lead:
+1. Raw user prompt -- the exact text the user typed.
+2. Project context -- contents of the project's memory files (stack.md, structure.md, domain.md). If memory is empty or unavailable, you receive only the prompt -- lower your confidence accordingly.
 
 ## Process
 
