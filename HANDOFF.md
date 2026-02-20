@@ -199,6 +199,7 @@ Research showed:
     orienter.md                  -- project exploration teammate, writes .orienter-state
     enhancer.md                  -- inline subagent for vague prompt refinement (haiku)
     planner.md                   -- teammate for implementation plans with dependency tags (sonnet)
+    implementer.md               -- teammate for code changes, TDD cycle, commits (sonnet)
   hooks/
     scripts/                     (empty -- hook scripts not yet written)
   monitoring/
@@ -229,9 +230,20 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 
 **Updated lifecycle:** ENHANCE -> CLASSIFY -> CHECK MEM -> PLAN -> EXECUTE -> VALIDATE -> INTEGRATE -> AUTO-RETRO
 
+### Lead Tool Restrictions + Implementer (post-Experiment 1 field test)
+
+**Problem:** The lead explored the codebase directly (using Explore subagent, Read on source files) instead of delegating to a teammate. Root cause: the lead had access to all tools and no Implementer prompt to delegate to, so it "just did the work" -- especially with `--allow-dangerously-skip-permissions`.
+
+**Solution:**
+1. **Tool restrictions in lead.md** -- explicit allowed/forbidden tool lists. Bash only for 3 git commands. Read only for memory/plan files. No Glob, Grep, Edit, Write, Explore, WebFetch, WebSearch.
+2. **Blocked fallback** -- if a role is needed but undefined, the lead outputs `[BLOCKED] Need {role} teammate but agents/{role}.md is not defined yet. Wanted to: {description}.` and stops.
+3. **Implementer agent** -- receives task context (direct or from plan step), explores code, implements, tests, commits, reports back with commit hash.
+
+**Key insight:** Prompt-level tool restrictions are the only mechanism available (agent frontmatter doesn't support tool restrictions). The constraints must be strong enough to override the model's bias toward direct action when all tools are technically available.
+
 ## What's Not Built
 
-- agents/implementer.md, validator.md, reviewer.md, investigator.md, researcher.md
+- agents/validator.md, reviewer.md, investigator.md, researcher.md
 - hooks/hooks.json and hook scripts
 - No git commits yet (repo is initialized but uncommitted)
 
@@ -247,8 +259,8 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 1. ~~Monitoring stack is running~~ DONE
 2. ~~Run Experiment 1~~ DONE (SUCCESS -- Attempt 2)
 3. Trim lead's post-orientation output to one-sentence summary (user feedback from Experiment 1)
-4. ~~Write Enhancer + Planner agent definitions~~ DONE
-5. Write remaining agent definitions (implementer, validator, reviewer, investigator, researcher)
+4. ~~Write Enhancer + Planner + Implementer agent definitions~~ DONE
+5. Write remaining agent definitions (validator, reviewer, investigator, researcher)
 6. Write hooks
 7. Initial git commit
 8. Run Experiment 2: test Enhancer + Planner pipeline end-to-end

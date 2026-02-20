@@ -196,6 +196,8 @@ OpenTelemetry-based telemetry with:
 - [x] Enhancer agent definition (agents/enhancer.md) -- inline subagent for vague prompts
 - [x] Planner agent definition (agents/planner.md) -- teammate for implementation plans
 - [x] Lead protocol updated with Step 0 (prompt quality) and Planner integration in Step 3
+- [x] Implementer agent definition (agents/implementer.md) -- TDD cycle, commits, reports back
+- [x] Lead tool restrictions -- no direct codebase access, blocked fallback for missing roles
 - [x] Monitoring stack (docker-compose + OTel + Prometheus + Grafana)
 - [x] Monitoring fixes: deltatocumulative processor, otlp_http/loki, Loki OTLP config
 - [x] Dashboard with real Claude Code metric names
@@ -203,7 +205,7 @@ OpenTelemetry-based telemetry with:
 - [x] claude-skills unlinked from ~/.claude/ (clean slate)
 
 ### Not Yet Built
-- [ ] agents/implementer.md, validator.md, reviewer.md, investigator.md, researcher.md
+- [ ] agents/validator.md, reviewer.md, investigator.md, researcher.md
 - [ ] hooks/hooks.json and hook scripts
 - [ ] Initial git commit
 
@@ -221,6 +223,8 @@ OpenTelemetry-based telemetry with:
 10. **Enhancer as subagent, not teammate** -- prompt enhancement is fast, single-shot, and needs no codebase access. Haiku model for minimal cost.
 11. **Planner as teammate, not subagent** -- plan quality requires codebase exploration (reading files, understanding patterns). Sonnet model for reasoning capability.
 12. **Enhancement before classification** -- vague prompts cause misclassification. Enhancing first produces better routing and prevents backtracking loops.
+13. **Lead has no codebase tools** -- the lead may only use Bash for 3 git commands and Read for memory/plan files. All exploration and implementation goes through teammates. Prevents the lead from "just doing it" when permissions are wide open.
+14. **Blocked fallback over improvisation** -- when a required role is undefined, the lead outputs a one-liner and stops. Better to surface the gap than to silently do the work itself.
 
 ## Confidence Assessment (overall: 0.55)
 
