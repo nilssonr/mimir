@@ -58,6 +58,7 @@ Orientation is a dependency resolved on demand, not a session preamble.
 | Role | Agent file | Model | Purpose | Writes to |
 |---|---|---|---|---|
 | Orienter | orienter.md | sonnet | Learn project, populate memory | memory/*.md, memory/.orienter-state |
+| Planner | planner.md | sonnet | Explore codebase, write implementation plan with dependency tags | specs/{org}/{repo}/{feature-slug}.md |
 | Implementer | implementer.md | sonnet | TDD cycle per module, own worktree | code + tests, memory/conventions.md |
 | Validator | validator.md | sonnet | Acceptance test against SPEC | state/{task}/validation.md |
 | Reviewer | reviewer.md | sonnet | Code review per lens, can debate | state/{task}/review.md |
@@ -68,6 +69,7 @@ Orientation is a dependency resolved on demand, not a session preamble.
 
 | Role | Model | Purpose |
 |---|---|---|
+| Enhancer | haiku | raw prompt + context -> enhanced prompt with scope/criteria/constraints |
 | PR Composer | haiku | git log -> PR title + body |
 | Retro Analyzer | haiku | log file -> ranked proposals |
 | Synthesizer | sonnet | memory + requirements -> questions + SPEC |
@@ -100,10 +102,15 @@ Memory is populated by the Orienter (on demand) and enriched by teammates after 
 ### Feature Lifecycle
 
 ```
-CLASSIFY  ->  does this need codebase knowledge?
+ENHANCE   ->  lead scores prompt quality, spawns Enhancer subagent if vague
+              user approves enhanced prompt via AskUserQuestion
+CLASSIFY  ->  lead classifies approved prompt
+              simple? -> skip to EXECUTE (single Implementer)
+CHECK MEM ->  does this need codebase knowledge?
               yes -> CHECK MEMORY FRESHNESS -> orient if stale
-PLAN      ->  SPEC + task decomposition with file ownership
-EXECUTE   ->  parallel Implementers in worktrees, each runs full TDD
+PLAN      ->  Planner teammate explores codebase, writes plan file with dependency tags
+              lead reads plan, presents parallelization to user
+EXECUTE   ->  Implementer(s) in worktrees, parallel groups from plan
 VALIDATE  ->  Validator reads SPEC + implementation, reports gaps
               gaps? -> loop back to EXECUTE
 INTEGRATE ->  merge worktree branches, Reviewer examines combined diff
@@ -164,15 +171,20 @@ OpenTelemetry-based telemetry with:
 - Evaluate: does the Orienter write quality memory files + .orienter-state?
 - Measure: accuracy, completeness, token cost, team lifecycle (spawn/shutdown)
 
-### Experiment 2: Parallel Implementers (tests H2, H3, H6 -- confidence 0.40-0.50)
-- 2-module feature, manual SPEC, 2 Implementer teammates in separate worktrees
+### Experiment 2: Enhancer + Planner Pipeline (tests prompt quality, plan precision -- confidence 0.40)
+- Vague feature request through full pipeline: Enhance -> Classify -> Plan
+- Evaluate: does the Enhancer improve classification accuracy? Does the Planner produce actionable plans with correct dependency tags?
+- Measure: enhancement quality, plan precision, token cost for each stage
+
+### Experiment 3: Parallel Implementers (tests H2, H3, H6 -- confidence 0.40-0.50)
+- 2-module feature, Planner-generated plan, 2 Implementer teammates in separate worktrees
 - Measure: spawn overhead, parallel speedup, merge friction, token cost
 
-### Experiment 3: Validator (tests H5 -- confidence 0.50)
-- After Experiment 2, spawn Validator against SPEC + implementation
+### Experiment 4: Validator (tests H5 -- confidence 0.50)
+- After Experiment 3, spawn Validator against SPEC + implementation
 - Measure: true/false positives, actionability
 
-### Experiment 4: Full Pipeline (integration test, after 1-3 pass)
+### Experiment 5: Full Pipeline (integration test, after 1-4 pass)
 
 ## Current State
 
@@ -181,6 +193,9 @@ OpenTelemetry-based telemetry with:
 - [x] Plugin manifest (.claude-plugin/plugin.json)
 - [x] Lead agent (agents/lead.md) activated via `--agent mimir:lead`
 - [x] Orienter agent definition (agents/orienter.md) with .orienter-state
+- [x] Enhancer agent definition (agents/enhancer.md) -- inline subagent for vague prompts
+- [x] Planner agent definition (agents/planner.md) -- teammate for implementation plans
+- [x] Lead protocol updated with Step 0 (prompt quality) and Planner integration in Step 3
 - [x] Monitoring stack (docker-compose + OTel + Prometheus + Grafana)
 - [x] Monitoring fixes: deltatocumulative processor, otlp_http/loki, Loki OTLP config
 - [x] Dashboard with real Claude Code metric names
@@ -190,7 +205,6 @@ OpenTelemetry-based telemetry with:
 ### Not Yet Built
 - [ ] agents/implementer.md, validator.md, reviewer.md, investigator.md, researcher.md
 - [ ] hooks/hooks.json and hook scripts
-- [ ] Experiment 1 execution and evaluation
 - [ ] Initial git commit
 
 ## Key Design Decisions
@@ -204,6 +218,9 @@ OpenTelemetry-based telemetry with:
 7. **Worktree isolation for parallel execution** -- each Implementer gets its own worktree, eliminates file conflicts
 8. **Plugin distribution** -- no Makefile, no symlinks, proper Claude Code plugin system
 9. **Telemetry from day one** -- OpenTelemetry with deltatocumulative conversion for Prometheus compatibility
+10. **Enhancer as subagent, not teammate** -- prompt enhancement is fast, single-shot, and needs no codebase access. Haiku model for minimal cost.
+11. **Planner as teammate, not subagent** -- plan quality requires codebase exploration (reading files, understanding patterns). Sonnet model for reasoning capability.
+12. **Enhancement before classification** -- vague prompts cause misclassification. Enhancing first produces better routing and prevents backtracking loops.
 
 ## Confidence Assessment (overall: 0.55)
 

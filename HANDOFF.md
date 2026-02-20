@@ -179,7 +179,7 @@ Research showed:
 
 1. ~~**Lead skill triggers team creation (0.60)**~~ -- CONFIRMED (Experiment 1). Lead classifies, checks memory, spawns Orienter via Agent Teams.
 2. **Memory enrichment by teammates (0.35)** -- will teammates reliably write back convention discoveries?
-3. **Plan precision enabling parallelization (0.40)** -- can the Synthesizer decompose into truly independent modules?
+3. **Plan precision enabling parallelization (0.40)** -- can the Planner decompose into truly independent modules with accurate dependency tags?
 4. **Ephemeral teammate cost (0.45)** -- is teammate spawn overhead acceptable for single-task usage?
 5. ~~**Orienter memory quality (0.50)**~~ -- CONFIRMED (Experiment 1). Accurate stack, patterns, architecture, domain. 5 files + .orienter-state.
 6. **Validator value-add (0.50)** -- does it catch gaps that TDD + Review miss?
@@ -197,6 +197,8 @@ Research showed:
   agents/
     lead.md                      -- lead coordinator (activated via --agent mimir:lead)
     orienter.md                  -- project exploration teammate, writes .orienter-state
+    enhancer.md                  -- inline subagent for vague prompt refinement (haiku)
+    planner.md                   -- teammate for implementation plans with dependency tags (sonnet)
   hooks/
     scripts/                     (empty -- hook scripts not yet written)
   monitoring/
@@ -209,12 +211,29 @@ Research showed:
 
 OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plugin.
 
+### Enhancer + Planner Design (post-Experiment 1)
+
+**Problem:** The gap between classification and implementation caused two issues:
+1. Vague prompts get misclassified (no enhancement step)
+2. Without a plan, the lead can't determine whether to parallelize Implementers
+
+**Solution:** Two new agents fill the gap:
+- **Enhancer** (subagent, haiku): Refines vague prompts before classification. Triggered by cumulative heuristic scoring (word count, lazy phrases, missing file refs, missing scope words, missing acceptance criteria). Score >= 1.5 triggers enhancement. Lead presents both versions to user via AskUserQuestion.
+- **Planner** (teammate, sonnet): Explores codebase and writes plan files with dependency tags to specs directory. Lead reads the plan's parallelization section to spawn Implementers in parallel groups.
+
+**Key decisions:**
+- Enhancer is a subagent (not teammate) because prompt enhancement is fast, single-shot, and needs no codebase access
+- Planner is a teammate (not subagent) because plan quality requires codebase exploration
+- Enhancement runs BEFORE classification (Step 0) because vague prompts cause misclassification
+- Simple tasks skip the Planner entirely -- direct to single Implementer
+
+**Updated lifecycle:** ENHANCE -> CLASSIFY -> CHECK MEM -> PLAN -> EXECUTE -> VALIDATE -> INTEGRATE -> AUTO-RETRO
+
 ## What's Not Built
 
 - agents/implementer.md, validator.md, reviewer.md, investigator.md, researcher.md
 - hooks/hooks.json and hook scripts
 - No git commits yet (repo is initialized but uncommitted)
-- Experiment 1 not yet completed
 
 ## Environment State
 
@@ -228,10 +247,11 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 1. ~~Monitoring stack is running~~ DONE
 2. ~~Run Experiment 1~~ DONE (SUCCESS -- Attempt 2)
 3. Trim lead's post-orientation output to one-sentence summary (user feedback from Experiment 1)
-4. Write remaining agent definitions (implementer, validator, reviewer, investigator, researcher)
-5. Write hooks
-6. Initial git commit
-7. Run Experiments 2-4
+4. ~~Write Enhancer + Planner agent definitions~~ DONE
+5. Write remaining agent definitions (implementer, validator, reviewer, investigator, researcher)
+6. Write hooks
+7. Initial git commit
+8. Run Experiment 2: test Enhancer + Planner pipeline end-to-end
 
 ## How to Resume
 
