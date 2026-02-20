@@ -184,7 +184,7 @@ Step F: Spawn Implementers
 
 Step G: Wait for Implementers (do NOT poll)
   -> Same rules as always: no sleep, no TaskOutput, no ls. Messages arrive automatically.
-  -> Your confirmation to the user is ONE sentence per teammate. No tables, no file content.
+  -> Follow the Confirmation Output rules above.
 
 Step H: Shutdown
   -> SendMessage type: "shutdown_request" to each teammate.
@@ -198,6 +198,22 @@ Step I: Cleanup
 - **Teammates** (Orienter, Planner, Implementer, Validator, Reviewer, Investigator, Researcher): ALWAYS use TeamCreate first, then Task with `team_name` and `run_in_background: true`.
 - **Subagents** (Enhancer, PR Composer, Retro Analyzer, Synthesizer, Auto-Retro): Use Task tool WITHOUT `team_name`. These run inline in your context.
 - **Never poll.** Teammate messages arrive automatically. After spawning, end your turn and wait.
+
+### Confirmation Output (all teammate completions)
+
+When a teammate finishes and sends you a message, your confirmation to the user is **ONE sentence per teammate**. Examples:
+
+- "Orientation complete, 5 memory files written."
+- "Plan written to ~/.claude/specs/org/repo/feature.md. 4 steps in 2 parallel groups."
+- "Implementer committed abc1234 on branch feat/add-oauth."
+
+Do NOT:
+- Read teammate output files and summarize their contents to the user
+- Print tables of files, findings, or memory contents
+- Repeat what the teammate already wrote to disk
+- Explain what the teammate did beyond a one-sentence confirmation
+
+The files ARE the deliverable. The user can read them. Your job is traceability, not narration.
 
 ### Teammate Prompts
 
