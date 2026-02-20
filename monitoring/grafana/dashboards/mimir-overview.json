@@ -57,7 +57,7 @@
       "gridPos": { "h": 8, "w": 4, "x": 8, "y": 8 },
       "targets": [
         {
-          "expr": "sum({__name__=~\"claude_code_active_time_total.*\"})",
+          "expr": "sum(claude_code_active_time_seconds_total)",
           "legendFormat": "Total",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
@@ -74,7 +74,7 @@
       "gridPos": { "h": 8, "w": 4, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "sum({__name__=~\"claude_code_lines_of_code.*\"})",
+          "expr": "sum(claude_code_lines_of_code_count_total)",
           "legendFormat": "Total",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
@@ -129,7 +129,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
       "targets": [
         {
-          "expr": "sum by (type) ({__name__=~\"claude_code_lines_of_code.*\"})",
+          "expr": "sum by (type) (claude_code_lines_of_code_count_total)",
           "legendFormat": "{{type}}",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
@@ -146,17 +146,17 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
       "targets": [
         {
-          "expr": "sum({__name__=~\"claude_code_session_count.*\"})",
+          "expr": "sum(claude_code_session_count_total)",
           "legendFormat": "Sessions",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         },
         {
-          "expr": "sum({__name__=~\"claude_code_commit_count.*\"})",
+          "expr": "sum(claude_code_commit_count_total)",
           "legendFormat": "Commits",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         },
         {
-          "expr": "sum({__name__=~\"claude_code_pull_request_count.*\"})",
+          "expr": "sum(claude_code_pull_request_count_total)",
           "legendFormat": "PRs",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
@@ -202,7 +202,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
       "targets": [
         {
-          "expr": "sum by (session_id) ({__name__=~\"claude_code_active_time_total.*\"})",
+          "expr": "sum by (session_id) (claude_code_active_time_seconds_total)",
           "legendFormat": "{{session_id}}",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
