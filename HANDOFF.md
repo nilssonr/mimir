@@ -119,9 +119,32 @@ Research showed:
 - Claude Code emits metrics with Delta aggregation temporality. Prometheus only understands Cumulative.
 - The `prometheusremotewrite` exporter silently drops delta metrics.
 - Fix: add `deltatocumulative` processor to the metrics pipeline before the exporter.
-- Claude Code emits 3 metrics: `claude_code.cost.usage` (USD), `claude_code.token.usage` (tokens), `claude_code.active_time.total`. The dashboard originally had 8 panels querying guessed metric names -- 5 of those metrics don't exist.
-- Rebuilt dashboard with only the 3 real metrics.
+- Claude Code emits 6 metrics (not 3 as originally thought). The dashboard originally had 8 panels querying guessed metric names -- now all 6 real metrics are used.
 - OTel attribute names use dots (`session.id`) which Prometheus converts to underscores (`session_id`).
+- OTel metric units are expanded in Prometheus names: unit `s` becomes `_seconds_`, unit `count` becomes `_count_`. Always query `api/v1/label/__name__/values` to discover exact names.
+- Tool execution data (tool_name, duration_ms, success) flows via OTel **logs/events** protocol to Loki, NOT via metrics to Prometheus. Querying Prometheus for tool data will always return empty.
+- OTel event attributes are stored as Loki **structured metadata** (not in the JSON body). Do NOT use `| json` in LogQL queries -- attributes like `event_name`, `tool_name`, `duration_ms` are already available as labels.
+
+**Prometheus metric names (confirmed via API):**
+
+| OTel name | Prometheus name | Extra labels |
+|---|---|---|
+| `claude_code.token.usage` | `claude_code_token_usage_tokens_total` | session_id, type (input/output/cacheRead/cacheCreation), model |
+| `claude_code.cost.usage` | `claude_code_cost_usage_USD_total` | session_id, model |
+| `claude_code.active_time.total` | `claude_code_active_time_seconds_total` | session_id, type (user/cli) |
+| `claude_code.lines_of_code.count` | `claude_code_lines_of_code_count_total` | session_id, type (added/removed) |
+| `claude_code.session.count` | `claude_code_session_count_total` | session_id |
+| `claude_code.code_edit_tool.decision` | `claude_code_code_edit_tool_decision_total` | session_id, tool_name, decision, source, language |
+
+**Loki event names (via OTel logs protocol):**
+
+| Event name | Key attributes |
+|---|---|
+| `claude_code.tool_result` | tool_name, duration_ms, success, session_id |
+| `claude_code.api_request` | model, duration_ms, cost_usd, input_tokens, output_tokens |
+| `claude_code.user_prompt` | prompt_length |
+| `claude_code.api_error` | model, error, status_code |
+| `claude_code.tool_decision` | tool_name, decision, source |
 
 ### Lead Architecture Pivot: Default Agent -> Opt-in Skill
 **What happened:** Fixed the namespace (`mimir:lead`), plugin loaded, `@mimir:lead` showed in header. But the lead still behaved like default Claude -- reading files, running git log, trying to build. Did not follow its own protocol to spawn teammates.
