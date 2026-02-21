@@ -301,20 +301,22 @@ OpenTelemetry-based telemetry with:
 16. **Conditional dispatch for integrations** -- teammates are single-purpose and project-agnostic. External integrations (bug filing, notifications, CI triggers) are dispatched by the Lead based on teammate output + project memory (integrations.md). New integrations are additive -- no existing agents modified.
 17. **Three-tier agent taxonomy** -- teammates (own context, multi-step, codebase access), subagents (single-shot transformation, no codebase), hooks (deterministic, no LLM). The deciding question: "does this need its own context window?" If no, subagent or hook. If it doesn't need an LLM at all, hook.
 
-## Confidence Assessment (overall: 0.60)
+## Confidence Assessment (overall: 0.67)
 
 | Aspect | Confidence | Status |
 |---|---|---|
-| Role decomposition + three-tier taxonomy | 0.90 | Formalized with decision criteria. Experiment 1 confirmed teammate/subagent distinction. |
-| Lead via --agent flag (opt-in) | 0.85 | Confirmed (Experiment 1). Classify -> check memory -> spawn teammate works. |
-| Memory as shared knowledge | 0.85 | Confirmed (Experiment 1). Orienter wrote quality files. integrations.md extends pattern. |
-| File-based state | 0.80 | Proven from claude-skills. Conditional dispatch reinforces (teammates write, lead reads). |
-| Git-based memory freshness | 0.75 | Mechanism works (.orienter-state written correctly). Only one orientation run so far. |
-| Skills-to-agents migration | 0.60 | Mapping is clear. Reference-heavy skills (sumo-search, temporal) lack a loading mechanism. |
-| Ephemeral teammates cost-effective | 0.50 | One data point (Orienter). Acceptable overhead but no multi-teammate measurement. |
-| Worktree management at scale | 0.50 | Untested. |
-| Validator catching real gaps | 0.50 | Not built. |
-| Agent Teams stability | 0.45 | Worked end-to-end but shutdown dance was awkward. Still experimental. |
-| Plan precision enabling parallelization | 0.40 | Planner defined but never run. |
+| Role decomposition + three-tier taxonomy | 0.90 | Formalized with decision criteria. Experiments 1+2 confirmed teammate/subagent distinction. All roles now defined. |
+| Lead via --agent flag (opt-in) | 0.90 | Confirmed (Experiments 1+2). Full pipeline: classify -> enhance -> check memory -> plan -> implement. |
+| Memory as shared knowledge | 0.85 | Confirmed (Experiments 1+2). Orienter wrote quality files. Enhancer used memory for project-specific clarifications. |
+| File-based state | 0.85 | Proven across both experiments. Planner writes plan to specs/, Implementer follows it, Validator/Reviewer write to state/. |
+| Plan precision enabling parallelization | 0.80 | Confirmed (Experiment 2). 6 steps, accurate dependency tags, file:line references, risk section predicted test breakage. Plan halved Implementer exploration. |
+| Git-based memory freshness | 0.75 | Worked in Experiment 2 (correctly assessed FRESH with minor drift). Two data points now. |
+| Full pipeline end-to-end | 0.70 | Confirmed (Experiment 2). Enhance -> Classify -> Check Memory -> Plan -> Implement -> Commit in ~21 min. |
+| Skills-to-agents migration | 0.65 | All roles defined. Reference-heavy skills (sumo-search, temporal) would use Researcher teammate. |
+| Ephemeral teammates cost-effective | 0.60 | Experiment 2: Planner ~3 min + Implementer ~17 min = ~21 min. Acceptable for a real 6-step feature. |
+| Agent Teams stability | 0.55 | Two successful experiments. Known issues: shutdown dance (Exp 1), Planner lifecycle gap (Exp 2, now fixed). No crashes or data loss. |
+| Worktree management at scale | 0.50 | Untested. Experiment 3 target. |
+| Validator catching real gaps | 0.50 | Defined but untested. |
 | Conditional dispatch (integrations) | 0.40 | Architecturally sound. Zero implementation. No subagent or integrations.md schema built. |
-| Memory enrichment by teammates | 0.35 | Only Orienter (purpose-built). Will Implementers/Reviewers reliably enrich? Unknown. |
+| Memory enrichment (Auto-Retro) | 0.40 | Auto-Retro defined but untested. Replaces hope that teammates self-enrich with an explicit subagent step. |
+| Hooks necessity | 0.30 | Unclear if needed. Implementer followed protocol perfectly in Experiment 2. May be redundant enforcement. Deferred pending more experiments. |
