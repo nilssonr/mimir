@@ -301,22 +301,23 @@ OpenTelemetry-based telemetry with:
 16. **Conditional dispatch for integrations** -- teammates are single-purpose and project-agnostic. External integrations (bug filing, notifications, CI triggers) are dispatched by the Lead based on teammate output + project memory (integrations.md). New integrations are additive -- no existing agents modified.
 17. **Three-tier agent taxonomy** -- teammates (own context, multi-step, codebase access), subagents (single-shot transformation, no codebase), hooks (deterministic, no LLM). The deciding question: "does this need its own context window?" If no, subagent or hook. If it doesn't need an LLM at all, hook.
 
-## Confidence Assessment (overall: 0.67)
+## Confidence Assessment (overall: 0.71)
 
 | Aspect | Confidence | Status |
 |---|---|---|
-| Role decomposition + three-tier taxonomy | 0.90 | Formalized with decision criteria. Experiments 1+2 confirmed teammate/subagent distinction. All roles now defined. |
-| Lead via --agent flag (opt-in) | 0.90 | Confirmed (Experiments 1+2). Full pipeline: classify -> enhance -> check memory -> plan -> implement. |
-| Memory as shared knowledge | 0.85 | Confirmed (Experiments 1+2). Orienter wrote quality files. Enhancer used memory for project-specific clarifications. |
-| File-based state | 0.85 | Proven across both experiments. Planner writes plan to specs/, Implementer follows it, Validator/Reviewer write to state/. |
-| Plan precision enabling parallelization | 0.80 | Confirmed (Experiment 2). 6 steps, accurate dependency tags, file:line references, risk section predicted test breakage. Plan halved Implementer exploration. |
-| Git-based memory freshness | 0.75 | Worked in Experiment 2 (correctly assessed FRESH with minor drift). Two data points now. |
-| Full pipeline end-to-end | 0.70 | Confirmed (Experiment 2). Enhance -> Classify -> Check Memory -> Plan -> Implement -> Commit in ~21 min. |
+| Role decomposition + three-tier taxonomy | 0.90 | Formalized with decision criteria. Experiments 1-3 confirmed teammate/subagent distinction. All roles now defined. |
+| Lead via --agent flag (opt-in) | 0.90 | Confirmed (Experiments 1-3). Full pipeline: classify -> enhance -> check memory -> plan -> implement. |
+| Memory as shared knowledge | 0.85 | Confirmed (Experiments 1-3). Orienter wrote quality files. Enhancer used memory for project-specific clarifications. |
+| File-based state | 0.85 | Proven across three experiments. Planner writes plan to specs/, Implementer follows it, Validator/Reviewer write to state/. |
+| Plan precision enabling parallelization | 0.80 | Confirmed (Experiments 2+3). Accurate dependency tags, file:line references. Plan halved Implementer exploration. |
+| Full pipeline end-to-end | 0.80 | Third successful run (Experiment 3). Enhance -> Classify -> Plan -> Execute (2 parallel Implementers) -> Validate -> Auto-Retro. All code correct. |
+| Git-based memory freshness | 0.75 | Three data points. Correctly assessed FRESH with minor drift in Experiments 2+3. |
 | Skills-to-agents migration | 0.65 | All roles defined. Reference-heavy skills (sumo-search, temporal) would use Researcher teammate. |
-| Ephemeral teammates cost-effective | 0.60 | Experiment 2: Planner ~3 min + Implementer ~17 min = ~21 min. Acceptable for a real 6-step feature. |
-| Agent Teams stability | 0.55 | Two successful experiments. Known issues: shutdown dance (Exp 1), Planner lifecycle gap (Exp 2, now fixed). No crashes or data loss. |
-| Worktree management at scale | 0.50 | Untested. Experiment 3 target. |
-| Validator catching real gaps | 0.50 | Defined but untested. |
+| Agent Teams stability | 0.65 | Three experiments, zero crashes, zero data loss. Protocol gaps are behavioral (model ignoring instructions), not platform instability. Shutdown dance (Exp 1), Planner lifecycle (Exp 2), worktree/shutdown/verbosity (Exp 3) -- all fixed in lead.md. |
+| Ephemeral teammates cost-effective | 0.65 | Three data points including parallel Implementers (Experiment 3). Acceptable cost for real features. |
+| Memory enrichment (Auto-Retro) | 0.55 | Ran as part of pipeline in Experiment 3. No longer "defined but untested." Quality of memory updates not yet evaluated. |
+| Worktree management at scale | 0.50 | Protocol now enforces isolation: "worktree" explicitly, but Experiment 3 did NOT actually use worktrees (that was the bug). Still unproven in practice. Next experiment is the real test. |
+| Validator catching real gaps | 0.50 | Ran in Experiment 3, confirmed clean code passes. Has not yet caught a real failure -- need a run where it rejects something. |
+| Reviewer in pipeline | 0.40 | Defined, wired into both sequences (simple + complex) after Experiment 3 fixes. Never spawned in any experiment. |
 | Conditional dispatch (integrations) | 0.40 | Architecturally sound. Zero implementation. No subagent or integrations.md schema built. |
-| Memory enrichment (Auto-Retro) | 0.40 | Auto-Retro defined but untested. Replaces hope that teammates self-enrich with an explicit subagent step. |
 | Hooks necessity | DECIDED: No | Not needed. Formatting/linting moved to Validator (discovers repo standards, checks, loops back to Implementer). Auto-format hook can't scale across all languages/platforms. Permission auto-approval is user config. |
