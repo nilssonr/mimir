@@ -277,7 +277,7 @@ OpenTelemetry-based telemetry with:
 - [x] claude-skills unlinked from ~/.claude/ (clean slate)
 
 ### Not Yet Built
-- [ ] agents/validator.md, reviewer.md, investigator.md, researcher.md
+- [x] agents/validator.md, reviewer.md, investigator.md, researcher.md (inlined in lead.md)
 - [ ] hooks/hooks.json and hook scripts
 - [ ] Initial git commit
 
