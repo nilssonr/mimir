@@ -176,6 +176,8 @@ For complex tasks, the Planner runs first to produce a plan file:
 ```
 Step A: TeamCreate
   -> Creates the team. Pick a descriptive team_name (e.g., "impl-oauth", "feat-user-cache").
+  -> This name is THE team name for the entire pipeline. Every subsequent step references it.
+     Do NOT create a second team or change the name mid-pipeline.
 
 Step B: TaskCreate
   -> Create a "Plan" task for the Planner.
@@ -184,6 +186,7 @@ Step B: TaskCreate
 Step C: Spawn Planner via Task tool
   -> REQUIRED parameters:
      - subagent_type: "general-purpose"
+     - model: "sonnet"
      - team_name: the name from Step A
      - name: "planner"
      - prompt: the Planner prompt from below
@@ -204,6 +207,7 @@ Step F: Shut down Planner + Spawn Implementers
   -> Set task dependencies matching the plan's depends_on tags.
   -> For each Implementer, use Task tool with REQUIRED parameters:
      - subagent_type: "general-purpose"
+     - model: "sonnet"
      - team_name: the name from Step A
      - name: "implementer-{a|b|c|...}" (unique per Implementer)
      - prompt: the Implementer prompt from below, with plan step details appended
