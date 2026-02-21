@@ -112,6 +112,22 @@ Research showed:
 - Added `loki/config.yaml` with OTLP-compatible settings
 - Mounted Loki config in docker-compose
 
+### Loki Label Cardinality Fix (post-Experiment 2)
+**What happened:** Every OTel log event created its own Loki stream (1 value per stream, 25 labels per stream). Attributes like `event_timestamp`, `duration_ms`, `event_sequence` are unique per event, so each event got a unique label combination.
+
+**What we learned:**
+- Claude Code emits per-event attributes as OTel **resource** attributes, not log record attributes.
+- Loki 3.x promotes resource attributes to stream labels by default (17-attribute default list plus anything extra the SDK attaches).
+- Log record attributes always go to structured metadata. Resource attributes only go to structured metadata if they're not in the default index label list.
+- The `distributor.otlp_config.default_resource_attributes_as_index_labels` replaces the default list entirely.
+- Known Loki bug #15927: `limits_config.otlp_config` cannot override `distributor` defaults. Use `distributor.otlp_config` directly.
+- `loki.resource.labels` hints from the old lokiexporter do NOT work with the native `/otlp` endpoint.
+
+**What we fixed:**
+- Set `distributor.otlp_config.default_resource_attributes_as_index_labels` to only `service.name` in Loki config.
+- All other resource attributes (session_id, event_name, tool_name, duration_ms, etc.) now go to structured metadata -- still queryable, but don't create unique streams.
+- Expected stream count: ~1 per service (instead of thousands per session).
+
 ### Metrics Pipeline Fix (Delta Temporality)
 **What happened:** OTel collector received metrics from Claude Code and forwarded them, but Prometheus only stored `target_info`. Dashboard showed no data.
 

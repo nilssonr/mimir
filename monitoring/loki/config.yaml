@@ -14,6 +14,15 @@ common:
     kvstore:
       store: inmemory
 
+# Control which OTel resource attributes become stream labels.
+# Replaces the default 17-attribute list. Everything not listed here
+# goes to structured metadata (still queryable, not a label).
+# See: https://grafana.com/docs/loki/latest/send-data/otel/
+distributor:
+  otlp_config:
+    default_resource_attributes_as_index_labels:
+      - service.name
+
 limits_config:
   allow_structured_metadata: true
 
