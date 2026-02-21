@@ -234,6 +234,36 @@ Research showed:
 - Clarify Enhancer re-run protocol (should lead re-run Enhancer or compose itself after CLARIFY?)
 - Investigate lint timeout indicator (lint runs in ~7.5s manually, but showed timeout during Implementer execution)
 
+### Experiment 3: Parallel Implementers in Worktrees on caser-ts (SUCCESS with issues)
+**What happened:** Ran `claude --agent mimir:lead --plugin-dir ~/Code/nilssonr/mimir` in caser-ts with a two-feature request: (1) wire audit API into ticket detail audit tab, (2) replace empty dashboard page with analytics cards + activity feed. Lead classified as complex, spawned Planner (~7m 37s), presented 13-step plan in 2 parallel groups (A: 4 steps, B: 9 steps). User had to prompt Planner shutdown. Two Implementers spawned in parallel. A finished first (audit tab, commit 1537110). B finished all 9 steps (dashboard analytics, commit 7fee113) but hit 0% context at step B9, auto-compacted and recovered. Validator checked all 8 acceptance criteria -- all PASS, standards clean. Lead shut down all teammates, ran Auto-Retro (haiku, ~46s), cleaned up team. Total: ~22m 14s.
+
+**What worked well:**
+- Parallel implementation of 13 steps in ~22 min (B's 9 steps alone would have been 15-20 min -- parallelization saved meaningful time)
+- Validator caught 7 findings (4 medium: missing error/loading states, hardcoded values, empty test expectations) and correctly flagged the branch topology issue
+- Auto-Retro produced quality output (process.md + decisions.md) in ~46s via haiku subagent
+- Teammate shutdown worked -- all three executors (2 implementers + validator) shut down after validation
+- Implementer B recovered from 0% context auto-compaction at step B9
+
+**Issues found:**
+1. **Worktree isolation FAILED.** Both Implementers ended up in the same working tree. Implementer B committed to `feat/audit-tab-wiring` instead of `feat/dashboard-analytics`. The `feat/dashboard-analytics` branch has zero commits above main. Root cause unknown -- either `isolation: "worktree"` wasn't passed to the Task tool, or the worktree wasn't created properly.
+2. **Planner shutdown still user-prompted.** Lead protocol Step F explicitly says "Shut down Planner before spawning Implementers." The model proposed execution without mentioning shutdown. User corrected it. Third experiment, third time the model skips explicit protocol steps.
+3. **Lead output verbosity STILL violated.** Final summary included full feature breakdowns (file counts, step-by-step B1-B9 details, SDK types, REST routes). The confirmation output rule says "ONE sentence per teammate" and explicitly forbids tables and bulleted lists. Three experiments, three violations.
+4. **Context pressure on complex tasks.** Implementer B (9 full-stack steps) hit 0% context. 9 steps may be near the upper limit for a single Implementer session. Consider splitting at 6-7 steps.
+
+**Metrics:**
+- Planning: ~7m 37s (longer than Exp 2's ~3 min -- 13 steps vs 6 steps)
+- Implementation: ~22m total wall time (2 parallel implementers, 13 steps, 40 files, ~1600 lines)
+- Validation: ~3m (8 criteria + full build/lint/test suite)
+- Auto-retro: ~46s (haiku subagent)
+- Total: ~22m 14s including all phases
+
+**Action items:**
+- Investigate worktree isolation failure: check if `isolation: "worktree"` was actually passed in the Task tool calls
+- Restructure Planner shutdown: move it into the spawn gate (make Implementer spawn conditional on Planner shutdown confirmation)
+- Move confirmation output rule to end of lead.md (last-read position may increase adherence)
+- Consider staggered shutdown: shut down early finishers immediately rather than batch at end
+- Consider step limit per Implementer (~6-7 steps) to avoid context pressure
+
 ## What's Confirmed (high confidence)
 
 1. The role decomposition is sound -- 6 teammates, 4 subagents, clear boundaries
@@ -246,16 +276,28 @@ Research showed:
 8. Enhancer improves prompt quality -- CLARIFY mode correctly identified ambiguity, produced project-specific questions from memory (Experiment 2)
 9. Planner produces actionable plans -- 6 steps, accurate dependency tags, specific file:line references, risk section that predicted test breakage (Experiment 2)
 10. Full pipeline works end-to-end -- Enhance -> Classify -> Check Memory -> Plan -> Implement -> Commit (Experiment 2)
+11. Parallel Implementers produce correct output -- 13 steps across 2 Implementers, all acceptance criteria pass, standards clean (Experiment 3)
+12. Validator catches real issues -- 7 findings including 4 medium severity that Implementers missed (missing error/loading states, hardcoded values, empty test expectations) (Experiment 3)
+13. Auto-Retro produces useful memory enrichment -- process.md and decisions.md written by haiku subagent in ~46s (Experiment 3)
 
 ## What's Unconfirmed (needs experiments)
 
 1. ~~**Lead skill triggers team creation (0.60)**~~ -- CONFIRMED (Experiment 1). Lead classifies, checks memory, spawns Orienter via Agent Teams.
-2. **Memory enrichment by teammates (0.35)** -- will teammates reliably write back convention discoveries? Implementer in Experiment 2 did NOT enrich memory. Relies on Auto-Retro (not built) and Orienter (next session).
-3. ~~**Plan precision enabling parallelization (0.40)**~~ -- CONFIRMED (Experiment 2). Planner produced 6 steps with accurate dependency tags (4 groups). Plan halved Implementer exploration time. File:line references were correct. Risk section predicted test breakage.
-4. ~~**Ephemeral teammate cost (0.45)**~~ -- PARTIALLY CONFIRMED (Experiment 2). Planning ~3 min + implementation ~17 min = ~21 min total for a real feature. Acceptable but Planner lifecycle gap (not shut down before Implementer) wasted context.
+2. ~~**Memory enrichment by teammates (0.35)**~~ -- CONFIRMED (Experiment 3). Auto-Retro (haiku subagent) wrote process.md and decisions.md to caser-ts memory. Implementers still don't enrich memory directly, but Auto-Retro fills the gap.
+3. ~~**Plan precision enabling parallelization (0.40)**~~ -- CONFIRMED (Experiments 2+3). Planner produced 13 steps with accurate dependency tags for 2 parallel groups. Parallelization saved meaningful wall time (13 steps in ~22 min vs estimated 30+ min sequential).
+4. ~~**Ephemeral teammate cost (0.45)**~~ -- CONFIRMED (Experiments 2+3). Planning + parallel implementation + validation + retro = ~22 min for a real 2-feature task. Planner shutdown still requires user prompting.
 5. ~~**Orienter memory quality (0.50)**~~ -- CONFIRMED (Experiment 1). Accurate stack, patterns, architecture, domain. 5 files + .orienter-state.
-6. **Validator value-add (0.50)** -- does it catch gaps that TDD + Review miss?
-7. ~~**Agent Teams stability (0.40)**~~ -- PARTIALLY CONFIRMED (Experiments 1+2). Full pipeline worked end-to-end. Known issues: shutdown dance (Exp 1), Planner not shut down before Implementer spawn (Exp 2). No crashes or data loss.
+6. ~~**Validator value-add (0.50)**~~ -- CONFIRMED (Experiment 3). Validator caught 7 findings (4 medium severity) that Implementers didn't self-catch. Also correctly flagged branch topology issue. Adds real value.
+7. ~~**Agent Teams stability (0.40)**~~ -- CONFIRMED (Experiments 1-3). Full pipeline works end-to-end across 3 experiments. Known issues are protocol adherence (model ignoring explicit steps), not platform instability. Worktree isolation failure is either a spawn parameter bug or platform limitation -- not a crash.
+
+## What's Still Broken (needs fixes, not experiments)
+
+1. **Worktree isolation** -- Both Implementers shared working tree in Experiment 3. Root cause TBD.
+2. **Planner shutdown adherence** -- Protocol Step F exists but model ignores it (Experiments 2+3). Need stronger framing.
+3. **Confirmation output verbosity** -- "One sentence" rule violated in all 3 experiments. Need positional or structural fix.
+4. **Staggered teammate shutdown** -- Early finishers sit idle. Protocol says batch shutdown. Need per-completion shutdown.
+5. **No terminal step** -- After cleanup (Step M), the lead goes silent. Should present AskUserQuestion with options: create PR, continue with another task, discard changes. The lead needs a Step N for user-facing closure.
+6. **Reviewer never spawned** -- The complex task sequence goes Validator -> Shutdown with no Review step. The Reviewer role is defined in lead.md but never invoked in the execution sequence. Validator checks "does it meet the spec?" Reviewer checks "is the code sound?" -- different concerns. Need a Step between Validation and Shutdown that spawns the Reviewer on the combined diff.
 
 ## What's Built
 
@@ -337,7 +379,10 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 7. ~~Write remaining agent definitions (validator, reviewer, investigator, researcher)~~ DONE (inlined in lead.md)
 8. ~~Write Auto-Retro subagent (needed for decisions.md enrichment)~~ DONE (inlined in lead.md, spawn steps added to both simple and complex sequences)
 9. ~~Write hooks~~ DECIDED: Not needed. Formatting/linting enforcement moved to Validator teammate (discovers repo-defined standards, checks against them, loops back to Implementer on failure). Permission auto-approval is a user config concern, not architecture. Notifications deferred (future: tmux or push notification system, not hooks).
-10. Run Experiment 3: parallel Implementers in worktrees
+10. ~~Run Experiment 3: parallel Implementers in worktrees~~ DONE (SUCCESS with issues -- worktree isolation failed, protocol adherence gaps)
+11. Fix lead.md protocol adherence issues (Planner shutdown, output verbosity, staggered shutdown)
+12. Investigate and fix worktree isolation failure
+13. First real commit to mimir repo (all work is uncommitted)
 
 ## How to Resume
 
