@@ -214,12 +214,12 @@
     },
     {
       "title": "Tool Calls per Agent",
-      "description": "Tool call count by session and tool name. Sourced from Loki events (claude_code.tool_result). If empty, check that the logs pipeline is running and events are flowing to Loki.",
+      "description": "Tool call count by session and tool name. Sourced from Loki structured metadata (event_name, session_id, tool_name are structured metadata, not stream labels).",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
       "targets": [
         {
-          "expr": "sum by (session_id, tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__auto]))",
+          "expr": "sum by (session_id, tool_name) (count_over_time({service_name=\"claude-code\"} | event_name = \"tool_result\" [$__auto]))",
           "legendFormat": "{{session_id}} / {{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -233,12 +233,12 @@
     },
     {
       "title": "Tool Execution Duration",
-      "description": "Average tool execution duration by tool name. Sourced from Loki events (claude_code.tool_result, duration_ms attribute). This data is NOT in Prometheus -- it flows via the OTel logs protocol to Loki.",
+      "description": "Average tool execution duration by tool name. Sourced from Loki structured metadata (duration_ms unwrapped from structured metadata).",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`tool_result` | unwrap duration_ms [$__auto]) by (tool_name)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name = \"tool_result\" | unwrap duration_ms [$__auto]) by (tool_name)",
           "legendFormat": "{{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -250,12 +250,12 @@
     },
     {
       "title": "Tool Call Count by Name",
-      "description": "Total tool calls by tool name. This is the 'per skill' view -- each tool maps to an agent action. Sourced from Loki events.",
+      "description": "Total tool calls by tool name. Sourced from Loki structured metadata.",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 34 },
       "targets": [
         {
-          "expr": "sum by (tool_name) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__range]))",
+          "expr": "sum by (tool_name) (count_over_time({service_name=\"claude-code\"} | event_name = \"tool_result\" [$__range]))",
           "legendFormat": "{{tool_name}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -263,12 +263,12 @@
     },
     {
       "title": "Tool Success Rate",
-      "description": "Tool success vs failure count. Sourced from Loki events.",
+      "description": "Tool success vs failure count. Sourced from Loki structured metadata.",
       "type": "piechart",
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 34 },
       "targets": [
         {
-          "expr": "sum by (success) (count_over_time({service_name=\"claude-code\"} | event_name=`tool_result` [$__range]))",
+          "expr": "sum by (success) (count_over_time({service_name=\"claude-code\"} | event_name = \"tool_result\" [$__range]))",
           "legendFormat": "success={{success}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -282,12 +282,12 @@
     },
     {
       "title": "API Request Duration by Model",
-      "description": "Average API request duration by model. Sourced from Loki events (claude_code.api_request).",
+      "description": "Average API request duration by model. Sourced from Loki structured metadata (duration_ms, model).",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap duration_ms [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name = \"api_request\" | unwrap duration_ms [$__auto]) by (model)",
           "legendFormat": "{{model}}",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -299,17 +299,17 @@
     },
     {
       "title": "Tokens per API Request",
-      "description": "Input and output tokens per API request by model. Sourced from Loki events.",
+      "description": "Input and output tokens per API request by model. Sourced from Loki structured metadata.",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
       "targets": [
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap input_tokens [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name = \"api_request\" | unwrap input_tokens [$__auto]) by (model)",
           "legendFormat": "input ({{model}})",
           "datasource": { "type": "loki", "uid": "loki" }
         },
         {
-          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name=`api_request` | unwrap output_tokens [$__auto]) by (model)",
+          "expr": "avg_over_time({service_name=\"claude-code\"} | event_name = \"api_request\" | unwrap output_tokens [$__auto]) by (model)",
           "legendFormat": "output ({{model}})",
           "datasource": { "type": "loki", "uid": "loki" }
         }
@@ -318,6 +318,36 @@
         "defaults": { "unit": "short" },
         "overrides": []
       }
+    },
+    {
+      "title": "Cost per API Request",
+      "description": "Cost per API request by model. Sourced from Loki structured metadata (cost_usd).",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 51 },
+      "targets": [
+        {
+          "expr": "sum_over_time({service_name=\"claude-code\"} | event_name = \"api_request\" | unwrap cost_usd [$__auto]) by (session_id)",
+          "legendFormat": "{{session_id}}",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "API Errors",
+      "description": "API error count by model and status code. Sourced from Loki structured metadata.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 51 },
+      "targets": [
+        {
+          "expr": "sum by (model, status_code) (count_over_time({service_name=\"claude-code\"} | event_name = \"api_error\" [$__auto]))",
+          "legendFormat": "{{model}} ({{status_code}})",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
