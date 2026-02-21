@@ -188,6 +188,36 @@ Research showed:
 
 **Fix:** Updated the classification table. Explicit orientation requests skip memory checks entirely and go straight to spawning the Orienter. Memory freshness checks only fire for implicit cases (feature requests, bug reports, etc.) where the lead needs to decide on its own.
 
+### Experiment 2: Enhancer + Planner + Implementer Pipeline on caser-ts (SUCCESS)
+**What happened:** Ran `claude --agent mimir:lead --plugin-dir ~/Code/nilssonr/mimir` in caser-ts, typed "add caching" (deliberately vague). Lead scored it as vague, spawned Enhancer (haiku subagent), Enhancer returned CLARIFY with 4 scoped options (gRPC, DB, HTTP headers, React Query). User pivoted to "store tokens in the db", Enhancer asked 3 follow-up questions (why, which tokens, purge strategy). User answered all three. Lead composed enhanced prompt, checked memory freshness (FRESH, 1 minor commit ahead), classified as complex, proposed Planner + Implementer(s). User approved. Planner explored codebase (7 rounds, ~3 min), wrote plan to `~/.claude/specs/nilssonr/caser-ts/refresh-token-storage.md`. Lead read plan, presented 4 dependency groups. User chose single Implementer. Implementer executed all 6 steps, 6 commits on `feat/refresh-token-storage`, 8 new tests, ~17 min. Team cleaned up.
+
+**What worked well:**
+- Enhancer correctly identified vagueness and produced project-specific clarifying questions (drew from memory)
+- Planner produced a high-quality 6-step plan with accurate dependency tags, specific file:line references, actual SQL/TypeScript code, and a risk section that correctly predicted which existing tests would break
+- Implementer followed the plan steps in order, committing per step (small logical commits)
+- Plan cut Implementer exploration from ~7 rounds (Planner) to ~3 rounds -- meaningful savings
+- Memory freshness check correctly assessed FRESH with minor drift
+- Full pipeline: vague prompt -> clarified -> enhanced -> classified -> planned -> implemented -> committed in ~21 min
+
+**Issues found:**
+1. **Lead violated confirmation output rule.** Printed a full 6-row table with commit hashes after implementation. Should have been one sentence. The rule added before this experiment wasn't strong enough to override the model's instinct to summarize.
+2. **Planner lifecycle gap.** Planner was not shut down before spawning Implementer. Stayed alive as idle teammate throughout implementation (~17 min of wasted context).
+3. **Lead skipped second Enhancer call.** After CLARIFY answers came back, the lead composed the enhanced prompt itself instead of re-running the Enhancer with the answers. Worked fine but deviated from the protocol ("Re-run Step 0 with the user's answers").
+4. **Implementer re-read files.** ~3 rounds of reading vs Planner's ~7. Plan halved exploration but didn't eliminate it. Implementer needs current file content to make edits -- plan references alone aren't enough.
+5. **Lint appeared to timeout.** `pnpm -w lint` showed a timeout indicator during Implementer execution, but manual run completes in ~7.5s. Likely a stacked command or output buffering issue, not a real timeout.
+
+**Metrics:**
+- Enhancement: ~4s (haiku subagent, 2 rounds: CLARIFY then composed by lead)
+- Planning: ~3 min (sonnet teammate, 7 rounds of file reading, 217-line plan)
+- Implementation: ~17 min (sonnet teammate, 6 steps, lint/format iterations)
+- Total: ~21 min for migration + repository + service + wiring + 8 tests
+
+**Action items:**
+- Strengthen confirmation output rule in lead.md (table violation despite explicit rule)
+- Add Planner shutdown step before Implementer spawn in lead protocol
+- Clarify Enhancer re-run protocol (should lead re-run Enhancer or compose itself after CLARIFY?)
+- Investigate lint timeout indicator (lint runs in ~7.5s manually, but showed timeout during Implementer execution)
+
 ## What's Confirmed (high confidence)
 
 1. The role decomposition is sound -- 6 teammates, 4 subagents, clear boundaries
@@ -197,16 +227,19 @@ Research showed:
 5. Plugin distribution is the right delivery mechanism -- replaces Makefile symlinks
 6. OpenTelemetry telemetry works -- metrics flow through deltatocumulative -> Prometheus
 7. Git hash comparison is the right freshness signal for memory
+8. Enhancer improves prompt quality -- CLARIFY mode correctly identified ambiguity, produced project-specific questions from memory (Experiment 2)
+9. Planner produces actionable plans -- 6 steps, accurate dependency tags, specific file:line references, risk section that predicted test breakage (Experiment 2)
+10. Full pipeline works end-to-end -- Enhance -> Classify -> Check Memory -> Plan -> Implement -> Commit (Experiment 2)
 
 ## What's Unconfirmed (needs experiments)
 
 1. ~~**Lead skill triggers team creation (0.60)**~~ -- CONFIRMED (Experiment 1). Lead classifies, checks memory, spawns Orienter via Agent Teams.
-2. **Memory enrichment by teammates (0.35)** -- will teammates reliably write back convention discoveries?
-3. **Plan precision enabling parallelization (0.40)** -- can the Planner decompose into truly independent modules with accurate dependency tags?
-4. **Ephemeral teammate cost (0.45)** -- is teammate spawn overhead acceptable for single-task usage?
+2. **Memory enrichment by teammates (0.35)** -- will teammates reliably write back convention discoveries? Implementer in Experiment 2 did NOT enrich memory. Relies on Auto-Retro (not built) and Orienter (next session).
+3. ~~**Plan precision enabling parallelization (0.40)**~~ -- CONFIRMED (Experiment 2). Planner produced 6 steps with accurate dependency tags (4 groups). Plan halved Implementer exploration time. File:line references were correct. Risk section predicted test breakage.
+4. ~~**Ephemeral teammate cost (0.45)**~~ -- PARTIALLY CONFIRMED (Experiment 2). Planning ~3 min + implementation ~17 min = ~21 min total for a real feature. Acceptable but Planner lifecycle gap (not shut down before Implementer) wasted context.
 5. ~~**Orienter memory quality (0.50)**~~ -- CONFIRMED (Experiment 1). Accurate stack, patterns, architecture, domain. 5 files + .orienter-state.
 6. **Validator value-add (0.50)** -- does it catch gaps that TDD + Review miss?
-7. **Agent Teams stability (0.40)** -- experimental feature with known limitations
+7. ~~**Agent Teams stability (0.40)**~~ -- PARTIALLY CONFIRMED (Experiments 1+2). Full pipeline worked end-to-end. Known issues: shutdown dance (Exp 1), Planner not shut down before Implementer spawn (Exp 2). No crashes or data loss.
 
 ## What's Built
 
@@ -281,12 +314,14 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 
 1. ~~Monitoring stack is running~~ DONE
 2. ~~Run Experiment 1~~ DONE (SUCCESS -- Attempt 2)
-3. Trim lead's post-orientation output to one-sentence summary (user feedback from Experiment 1)
+3. ~~Trim lead's post-orientation output to one-sentence summary~~ DONE (committed 8e72fc9)
 4. ~~Write Enhancer + Planner + Implementer agent definitions~~ DONE
-5. Write remaining agent definitions (validator, reviewer, investigator, researcher)
-6. Write hooks
-7. Initial git commit
-8. Run Experiment 2: test Enhancer + Planner pipeline end-to-end
+5. ~~Run Experiment 2: Enhancer + Planner + Implementer pipeline~~ DONE (SUCCESS)
+6. Fix Experiment 2 issues: strengthen confirmation output rule, add Planner shutdown step, clarify Enhancer re-run protocol
+7. Write remaining agent definitions (validator, reviewer, investigator, researcher)
+8. Write Auto-Retro subagent (needed for decisions.md enrichment)
+9. Write hooks
+10. Run Experiment 3: parallel Implementers in worktrees
 
 ## How to Resume
 

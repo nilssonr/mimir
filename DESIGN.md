@@ -73,7 +73,7 @@ Orientation is a dependency resolved on demand, not a session preamble.
 | PR Composer | haiku | git log -> PR title + body |
 | Retro Analyzer | haiku | log file -> ranked proposals |
 | Synthesizer | sonnet | memory + requirements -> questions + SPEC |
-| Auto-Retro | haiku | task history + git log -> process learnings -> memory/process.md |
+| Auto-Retro | haiku | task history + git log -> process learnings -> memory/process.md + architectural decisions -> memory/decisions.md |
 
 ### Agent Taxonomy
 
@@ -154,6 +154,7 @@ Memory files:
 - `conventions.md` -- error handling, test patterns, naming, DI
 - `architecture.md` -- key abstractions, data flow, API patterns
 - `domain.md` -- business entities, relationships, API surface
+- `decisions.md` -- architectural decision record. Why we chose X over Y, what was considered and rejected. Appended by Auto-Retro after each feature. Read by Reviewer (and all teammates) to understand intent behind existing code.
 - `process.md` -- lessons learned from retros
 - `integrations.md` -- external system config (bug tracker, CI, notifications) used by Lead for conditional dispatch
 - `.orienter-state` -- git hash, branch, dirty flag, timestamp
@@ -185,6 +186,7 @@ VALIDATE  ->  Validator reads SPEC + implementation, reports gaps
               gaps? -> loop back to EXECUTE
 INTEGRATE ->  merge worktree branches, Reviewer examines combined diff
 AUTO-RETRO -> subagent reviews what happened, updates memory/process.md
+              extracts architectural decisions (why X over Y) -> memory/decisions.md
 ```
 
 ### Bug Lifecycle
