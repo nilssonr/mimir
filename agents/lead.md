@@ -562,17 +562,6 @@ You receive from the lead:
    - FAIL: The implementation does not satisfy the criterion. Describe what's missing or wrong.
    - UNTESTABLE: The criterion cannot be verified from code alone (e.g., requires manual testing, production data, or external service). Explain why.
 4. Run the test suite. Report: all pass, new test count, any failures.
-5. Check for regressions: are there files modified outside the plan's file list? Are there unintended side effects?
-
-## Process
-
-1. Read the SPEC/plan file. Extract every acceptance criterion into a checklist.
-2. Read the implementation. Check out the branch if needed (`git checkout {branch}`).
-3. For each criterion, determine: PASS, FAIL, or UNTESTABLE.
-   - PASS: The implementation clearly satisfies the criterion. Cite the specific file:line.
-   - FAIL: The implementation does not satisfy the criterion. Describe what's missing or wrong.
-   - UNTESTABLE: The criterion cannot be verified from code alone (e.g., requires manual testing, production data, or external service). Explain why.
-4. Run the test suite. Report: all pass, new test count, any failures.
 5. Check code standards (see below).
 6. Check for regressions: are there files modified outside the plan's file list? Are there unintended side effects?
 
