@@ -149,9 +149,24 @@ Step F: Evaluate Validation
   -> ANY FAIL: relay failures to Implementer via SendMessage. Implementer fixes and re-commits.
      Wait for Implementer, then re-run Validator (back to Step E). Maximum 2 retry cycles.
      After 2 retries, report remaining failures to user via AskUserQuestion and ask how to proceed.
-Step G: Shutdown all teammates
-Step H: Auto-Retro (inline subagent, haiku -- pass git log + memory path)
-Step I: Cleanup (TeamDelete)
+Step G: Spawn Reviewer via Task tool (with team_name, run_in_background: true)
+  -> Pass: branch name, plan/SPEC file path (for context), task-id for output path.
+  -> Wait for Reviewer message.
+Step H: Evaluate Review
+  -> Critical/Major findings: relay to Implementer via SendMessage. Implementer fixes.
+     Wait for Implementer, then re-run Reviewer (back to Step G). Maximum 1 retry.
+  -> Minor findings only or no findings: proceed.
+  -> Present review summary to user (one sentence).
+Step I: Shutdown all teammates
+Step J: Auto-Retro (inline subagent, haiku -- pass git log + memory path)
+Step K: Cleanup (TeamDelete)
+Step L: Terminal
+  -> Use AskUserQuestion with options:
+     - "Create PR for {branch}" -- spawn PR Composer subagent (haiku) to push branch
+       and create PR via gh CLI. Pass: branch name, plan file path (for PR body context),
+       validation + review file paths (for PR description).
+     - "Continue with another task" -- reset to Step 0, ready for next prompt.
+     - "Discard changes" -- warn user this deletes the branch, ask for confirmation.
 ```
 
 ### Team Creation Sequence -- Complex Tasks (with Planner)
@@ -183,42 +198,71 @@ Step E: Read Plan and Present
   -> Present the parallelization summary to user via AskUserQuestion:
      "The plan has N steps in M groups. Group A (parallel): Steps X, Y. Group B (after A): Step Z. Proceed?" with options: "Execute plan", "Revise plan", "Abort".
 
-Step F: Shut down Planner
-  -> SendMessage type: "shutdown_request" to the Planner. It has finished its work.
-  -> Wait for shutdown confirmation before proceeding.
-
-Step G: Spawn Implementers
-  -> Create TaskCreate entries for each step from the plan.
+Step F: Shut down Planner + Spawn Implementers
+  -> GATE: Send shutdown_request to Planner. Do NOT proceed until shutdown is confirmed.
+  -> Once confirmed, create TaskCreate entries for each step from the plan.
   -> Set task dependencies matching the plan's depends_on tags.
-  -> Spawn Implementer teammates for each parallel group:
-     - One Implementer per step (or per group of related steps if files overlap)
-     - Each Implementer gets its own worktree
-     - Pass the relevant step details from the plan as the Implementer's prompt context
+  -> For each Implementer, use Task tool with REQUIRED parameters:
+     - subagent_type: "general-purpose"
+     - team_name: the name from Step A
+     - name: "implementer-{a|b|c|...}" (unique per Implementer)
+     - prompt: the Implementer prompt from below, with plan step details appended
+     - run_in_background: true
+     - isolation: "worktree"    <-- REQUIRED for parallel Implementers
+  -> Parallel Implementers MUST use isolation: "worktree". Without it, they share
+     the working tree and corrupt each other's branches.
 
-Step H: Wait for Implementers (do NOT poll)
-  -> Same rules as always: no sleep, no TaskOutput, no ls. Messages arrive automatically.
-  -> Follow the Confirmation Output rules above.
+Step G: Wait for Implementers (do NOT poll)
+  -> Messages arrive automatically. No sleep, no TaskOutput, no ls.
+  -> When an Implementer reports completion ("Done. Committed {hash}..."):
+     1. Send shutdown_request to THAT Implementer immediately. Do not wait for others.
+     2. Output one confirmation sentence to the user.
+     3. Continue waiting for remaining Implementers.
+  -> Follow the Confirmation Output rules.
 
-Step I: Spawn Validator via Task tool (with team_name, run_in_background: true)
+Step H: Spawn Validator via Task tool (with team_name, run_in_background: true)
   -> Pass: SPEC/plan path, branch name, task-id for output path.
   -> Wait for Validator message.
 
-Step J: Evaluate Validation
-  -> ALL PASS + standards clean: proceed to Step K.
+Step I: Evaluate Validation
+  -> ALL PASS + standards clean: proceed to Step J.
   -> ANY FAIL: relay failures to the relevant Implementer(s) via SendMessage.
-     Implementer fixes and re-commits. Wait for Implementer, then re-run Validator (back to Step I).
+     If an Implementer was already shut down, re-spawn a new Implementer with the
+     review findings, original task context, and isolation: "worktree".
+     Wait for Implementer, then re-run Validator (back to Step H).
      Maximum 2 retry cycles. After 2 retries, report remaining failures to user via AskUserQuestion.
 
-Step K: Shutdown all teammates
-  -> SendMessage type: "shutdown_request" to each Implementer and the Validator.
+Step J: Spawn Reviewer via Task tool (with team_name, run_in_background: true)
+  -> Pass: branch name, plan/SPEC file path (for context), task-id for output path.
+  -> Wait for Reviewer message.
 
-Step L: Auto-Retro
+Step K: Evaluate Review
+  -> Critical/Major findings: relay to the relevant Implementer(s) via SendMessage.
+     If an Implementer was already shut down, re-spawn a new Implementer with the
+     review findings, original task context, and isolation: "worktree".
+     Wait for Implementer, then re-run Reviewer (back to Step J). Maximum 1 retry.
+  -> Minor findings only or no findings: proceed.
+  -> Present review summary to user (one sentence).
+
+Step L: Shutdown remaining teammates
+  -> SendMessage type: "shutdown_request" to any teammates still running (Validator, Reviewer,
+     any Implementers not yet shut down).
+
+Step M: Auto-Retro
   -> Spawn Auto-Retro as an inline subagent (haiku, no team_name).
   -> Pass: git log for the feature branch, plan file path, validation/review file paths (if any), memory directory path.
   -> This runs in your context (fast, single-shot). Wait for the result.
 
-Step M: Cleanup
+Step N: Cleanup
   -> TeamDelete to remove the team.
+
+Step O: Terminal
+  -> Use AskUserQuestion with options:
+     - "Create PR for {branch}" -- spawn PR Composer subagent (haiku) to push branch
+       and create PR via gh CLI. Pass: branch name, plan file path (for PR body context),
+       validation + review file paths (for PR description).
+     - "Continue with another task" -- reset to Step 0, ready for next prompt.
+     - "Discard changes" -- warn user this deletes the branch, ask for confirmation.
 ```
 
 ### Spawning Rules (all tasks)
@@ -956,6 +1000,7 @@ Return one of:
 - **Never re-discover what memory already knows.**
 - **Never declare "Done" with uncommitted code.** Ensure teammates commit their work.
 - **Never poll for teammate completion.** No sleep commands, no TaskOutput calls, no ls checks. Teammate messages arrive automatically. After spawning, end your turn and wait.
+- **ONE sentence per teammate completion.** When a teammate finishes, your response to the user is exactly one sentence. No tables. No bulleted lists. No file listings. No step breakdowns. "Implementer committed abc1234 on feat/add-oauth." is the entire message. The files are the deliverable -- the user can read them. You provide traceability, not narration. If you catch yourself building a table or list, STOP and compress to one sentence.
 
 ## File Protocol
 
