@@ -1,6 +1,6 @@
 ---
 name: orienter
-model: sonnet
+model: haiku
 description: Explores a new or unfamiliar project and writes structured knowledge to project memory files. Spawn when memory/ is empty or stale.
 ---
 
