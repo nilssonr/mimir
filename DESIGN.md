@@ -98,11 +98,11 @@ Decision criteria: Does this need to explore code? Does it require multi-step re
 
 Decision criteria: Can the input and output be fully specified in the spawn prompt? Is it a pure function (input -> output, no side-channel exploration)? If yes to both, subagent.
 
-**Hooks** -- event-triggered side-effects. No reasoning, no context window. Shell scripts that enforce constraints or automate mechanical steps. Examples: formatters, commit validators, test gates.
+**Hooks** -- event-triggered side-effects. No reasoning, no context window. Shell scripts that enforce constraints or automate mechanical steps. **Status: decided not needed for mimir.** The original hook candidates (auto-format, commit validation, test gates) are handled by the Validator teammate, which discovers repo-defined standards and loops back to the Implementer on failure. This scales across all languages/frameworks/platforms without hardcoding tool-specific hooks.
 
-Decision criteria: Is this a deterministic check or transformation? Does it need zero reasoning? If yes, hook.
+Decision criteria (preserved for reference): Is this a deterministic check or transformation? Does it need zero reasoning? If yes, hook. In practice, the Validator subsumes this tier because discovering which standards to check requires reading the repo -- which needs an LLM.
 
-**The test:** When considering a new capability, ask: "Does this need its own context window and multi-step reasoning?" If no, it's a subagent or hook. If it doesn't even need an LLM, it's a hook.
+**The test:** When considering a new capability, ask: "Does this need its own context window and multi-step reasoning?" If no, it's a subagent. If it needs codebase access to discover what to check, it's a teammate (Validator). Pure hooks remain available for future use (e.g., notifications) but are not part of the core architecture.
 
 ### Conditional Dispatch (integration pattern)
 
@@ -220,7 +220,7 @@ mimir/
   agents/
     lead.md                    -- lead coordinator (activated via --agent mimir:lead)
     orienter.md                -- project exploration teammate
-  hooks/hooks.json + scripts/  -- enforcement hooks (not yet built)
+  hooks/                       -- reserved (decided: not needed, enforcement via Validator)
   settings.json                -- {} (no default agent; lead is opt-in via --agent flag)
   monitoring/                  -- Docker Compose observability stack
 ```
@@ -278,7 +278,7 @@ OpenTelemetry-based telemetry with:
 
 ### Not Yet Built
 - [x] agents/validator.md, reviewer.md, investigator.md, researcher.md (inlined in lead.md)
-- [ ] hooks/hooks.json and hook scripts
+- [x] ~~hooks/hooks.json and hook scripts~~ DECIDED: Not needed (formatting/linting moved to Validator)
 - [ ] Initial git commit
 
 ## Key Design Decisions
@@ -319,4 +319,4 @@ OpenTelemetry-based telemetry with:
 | Validator catching real gaps | 0.50 | Defined but untested. |
 | Conditional dispatch (integrations) | 0.40 | Architecturally sound. Zero implementation. No subagent or integrations.md schema built. |
 | Memory enrichment (Auto-Retro) | 0.40 | Auto-Retro defined but untested. Replaces hope that teammates self-enrich with an explicit subagent step. |
-| Hooks necessity | 0.30 | Unclear if needed. Implementer followed protocol perfectly in Experiment 2. May be redundant enforcement. Deferred pending more experiments. |
+| Hooks necessity | DECIDED: No | Not needed. Formatting/linting moved to Validator (discovers repo standards, checks, loops back to Implementer). Auto-format hook can't scale across all languages/platforms. Permission auto-approval is user config. |

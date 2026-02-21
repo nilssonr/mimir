@@ -141,9 +141,17 @@ Step A: TeamCreate
 Step B: TaskCreate (single task)
 Step C: Spawn Implementer via Task tool (with team_name, run_in_background: true)
 Step D: Wait (do NOT poll)
-Step E: Shutdown
-Step F: Auto-Retro (inline subagent, haiku -- pass git log + memory path)
-Step G: Cleanup (TeamDelete)
+Step E: Spawn Validator via Task tool (with team_name, run_in_background: true)
+  -> Pass: SPEC/plan path, branch name, task-id for output path.
+  -> Wait for Validator message.
+Step F: Evaluate Validation
+  -> ALL PASS + standards clean: proceed to Step G.
+  -> ANY FAIL: relay failures to Implementer via SendMessage. Implementer fixes and re-commits.
+     Wait for Implementer, then re-run Validator (back to Step E). Maximum 2 retry cycles.
+     After 2 retries, report remaining failures to user via AskUserQuestion and ask how to proceed.
+Step G: Shutdown all teammates
+Step H: Auto-Retro (inline subagent, haiku -- pass git log + memory path)
+Step I: Cleanup (TeamDelete)
 ```
 
 ### Team Creation Sequence -- Complex Tasks (with Planner)
@@ -191,15 +199,25 @@ Step H: Wait for Implementers (do NOT poll)
   -> Same rules as always: no sleep, no TaskOutput, no ls. Messages arrive automatically.
   -> Follow the Confirmation Output rules above.
 
-Step I: Shutdown
-  -> SendMessage type: "shutdown_request" to each Implementer teammate.
+Step I: Spawn Validator via Task tool (with team_name, run_in_background: true)
+  -> Pass: SPEC/plan path, branch name, task-id for output path.
+  -> Wait for Validator message.
 
-Step J: Auto-Retro
+Step J: Evaluate Validation
+  -> ALL PASS + standards clean: proceed to Step K.
+  -> ANY FAIL: relay failures to the relevant Implementer(s) via SendMessage.
+     Implementer fixes and re-commits. Wait for Implementer, then re-run Validator (back to Step I).
+     Maximum 2 retry cycles. After 2 retries, report remaining failures to user via AskUserQuestion.
+
+Step K: Shutdown all teammates
+  -> SendMessage type: "shutdown_request" to each Implementer and the Validator.
+
+Step L: Auto-Retro
   -> Spawn Auto-Retro as an inline subagent (haiku, no team_name).
   -> Pass: git log for the feature branch, plan file path, validation/review file paths (if any), memory directory path.
   -> This runs in your context (fast, single-shot). Wait for the result.
 
-Step K: Cleanup
+Step M: Cleanup
   -> TeamDelete to remove the team.
 ```
 
@@ -498,6 +516,39 @@ You receive from the lead:
 4. Run the test suite. Report: all pass, new test count, any failures.
 5. Check for regressions: are there files modified outside the plan's file list? Are there unintended side effects?
 
+## Process
+
+1. Read the SPEC/plan file. Extract every acceptance criterion into a checklist.
+2. Read the implementation. Check out the branch if needed (`git checkout {branch}`).
+3. For each criterion, determine: PASS, FAIL, or UNTESTABLE.
+   - PASS: The implementation clearly satisfies the criterion. Cite the specific file:line.
+   - FAIL: The implementation does not satisfy the criterion. Describe what's missing or wrong.
+   - UNTESTABLE: The criterion cannot be verified from code alone (e.g., requires manual testing, production data, or external service). Explain why.
+4. Run the test suite. Report: all pass, new test count, any failures.
+5. Check code standards (see below).
+6. Check for regressions: are there files modified outside the plan's file list? Are there unintended side effects?
+
+## Code Standards Check
+
+Discover and run the repository's defined code quality tools. Check these sources in order:
+
+1. **package.json** scripts: look for `lint`, `format`, `format:check`, `typecheck`, `check`, `validate` scripts.
+2. **Makefile / Taskfile / justfile**: look for `lint`, `format`, `check` targets.
+3. **CI config** (.github/workflows/, .gitlab-ci.yml, Jenkinsfile): look for lint/format/typecheck steps -- these are the authoritative standards.
+4. **Config files**: .prettierrc, .eslintrc, rustfmt.toml, .golangci.yml, pyproject.toml [tool.ruff], etc.
+5. **stack.md** (project memory): formatter, linter, and type checker listed there.
+
+Run whatever the repo defines. Common patterns:
+- Node/TS: `pnpm lint`, `pnpm format:check` (or npm/yarn/bun equivalent)
+- Go: `golangci-lint run`, `gofmt -l .`
+- Rust: `cargo clippy`, `cargo fmt --check`
+- Python: `ruff check .`, `ruff format --check .`
+- .NET: `dotnet format --verify-no-changes`
+
+Report results as PASS (clean) or FAIL (with specific violations). Do NOT auto-fix -- report the failures so the Implementer can fix them.
+
+If no code quality tools are configured in the repo, skip this section and note "No formatting/linting standards defined in repository."
+
 ## Output
 
 Write to: `~/.claude/state/{task-id}/validation.md`
@@ -509,7 +560,7 @@ The lead provides the {task-id}. Create the directory if it doesn't exist.
 # Validation: {feature name}
 
 ## Summary
-{one sentence: X/Y criteria pass, Z failures, W untestable}
+{one sentence: X/Y criteria pass, Z failures, W untestable. Standards: pass/fail.}
 
 ## Criteria
 
@@ -526,6 +577,12 @@ The lead provides the {task-id}. Create the directory if it doesn't exist.
 - New tests: {count}
 - Failures: {list if any}
 
+## Code Standards
+- Formatter: {tool} -- PASS | FAIL ({count} violations)
+- Linter: {tool} -- PASS | FAIL ({count} violations)
+- Type checker: {tool} -- PASS | FAIL ({count} errors)
+- Violations: {list of specific files/issues if FAIL, or "none"}
+
 ## Regressions
 - Files outside plan scope: {list or "none"}
 - Unintended changes: {description or "none"}
@@ -537,12 +594,15 @@ The lead provides the {task-id}. Create the directory if it doesn't exist.
 - Do not suggest improvements, refactors, or style changes. You validate against the SPEC, nothing more.
 - Do not re-run the implementation or attempt fixes. You are read-only.
 - If the SPEC is ambiguous on a criterion, mark it UNTESTABLE with an explanation.
+- Code standards failures are treated the same as criteria failures -- they block completion.
 
 ## When Done
 
-Send a single message to the lead: "Validation complete: X/Y pass, Z fail. Written to {path}."
+Send a single message to the lead with this format:
 
-If all criteria pass: "Validation complete: all Y criteria pass. Written to {path}."
+"Validation complete: X/Y criteria pass, Z fail. Standards: {pass|N violations}. Written to {path}."
+
+If everything passes: "Validation complete: all Y criteria pass, standards clean. Written to {path}."
 
 Nothing else. The file IS the deliverable.
 ```
