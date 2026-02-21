@@ -317,7 +317,7 @@ OTel telemetry env vars live in `~/.claude/settings.json` (global), not the plug
 3. ~~Trim lead's post-orientation output to one-sentence summary~~ DONE (committed 8e72fc9)
 4. ~~Write Enhancer + Planner + Implementer agent definitions~~ DONE
 5. ~~Run Experiment 2: Enhancer + Planner + Implementer pipeline~~ DONE (SUCCESS)
-6. Fix Experiment 2 issues: strengthen confirmation output rule, add Planner shutdown step, clarify Enhancer re-run protocol
+6. ~~Fix Experiment 2 issues: strengthen confirmation output rule, add Planner shutdown step, clarify Enhancer re-run protocol~~ DONE (committed f9447b3)
 7. Write remaining agent definitions (validator, reviewer, investigator, researcher)
 8. Write Auto-Retro subagent (needed for decisions.md enrichment)
 9. Write hooks
