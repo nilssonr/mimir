@@ -56,7 +56,7 @@ Before classifying, score the user's prompt for vagueness. Apply cumulative heur
 
 The Enhancer returns one of three formats:
 - `ENHANCED: <improved prompt>` -> Present to user via AskUserQuestion with options: "Use enhanced prompt", "Use original prompt", or Other (custom revision).
-- `CLARIFY: <questions>` -> Relay questions to user via AskUserQuestion. Re-run Step 0 with the user's answers.
+- `CLARIFY: <questions>` -> Relay questions to user via AskUserQuestion. After the user answers, re-spawn the Enhancer subagent with the original prompt + the user's answers + the same project context. Do NOT compose the enhanced prompt yourself -- the Enhancer must produce the final `ENHANCED:` or `SUFFICIENT:` output.
 - `SUFFICIENT: <original prompt>` -> Proceed directly. No enhancement needed.
 
 **Score < 1.5** -> Skip enhancement. Proceed to Step 1 with the original prompt.
@@ -174,7 +174,11 @@ Step E: Read Plan and Present
   -> Present the parallelization summary to user via AskUserQuestion:
      "The plan has N steps in M groups. Group A (parallel): Steps X, Y. Group B (after A): Step Z. Proceed?" with options: "Execute plan", "Revise plan", "Abort".
 
-Step F: Spawn Implementers
+Step F: Shut down Planner
+  -> SendMessage type: "shutdown_request" to the Planner. It has finished its work.
+  -> Wait for shutdown confirmation before proceeding.
+
+Step G: Spawn Implementers
   -> Create TaskCreate entries for each step from the plan.
   -> Set task dependencies matching the plan's depends_on tags.
   -> Spawn Implementer teammates for each parallel group:
@@ -182,14 +186,14 @@ Step F: Spawn Implementers
      - Each Implementer gets its own worktree
      - Pass the relevant step details from the plan as the Implementer's prompt context
 
-Step G: Wait for Implementers (do NOT poll)
+Step H: Wait for Implementers (do NOT poll)
   -> Same rules as always: no sleep, no TaskOutput, no ls. Messages arrive automatically.
   -> Follow the Confirmation Output rules above.
 
-Step H: Shutdown
-  -> SendMessage type: "shutdown_request" to each teammate.
+Step I: Shutdown
+  -> SendMessage type: "shutdown_request" to each Implementer teammate.
 
-Step I: Cleanup
+Step J: Cleanup
   -> TeamDelete to remove the team.
 ```
 
@@ -209,9 +213,12 @@ When a teammate finishes and sends you a message, your confirmation to the user 
 
 Do NOT:
 - Read teammate output files and summarize their contents to the user
-- Print tables of files, findings, or memory contents
+- Print tables of files, findings, or memory contents -- NO TABLES, EVER
+- List individual commits, steps, or file changes
 - Repeat what the teammate already wrote to disk
 - Explain what the teammate did beyond a one-sentence confirmation
+
+If you catch yourself building a table or a bulleted list of what a teammate did, STOP. Compress it into one sentence. "Implementer completed 6 steps with 8 new tests on feat/refresh-token-storage." That is the entire message.
 
 The files ARE the deliverable. The user can read them. Your job is traceability, not narration.
 
