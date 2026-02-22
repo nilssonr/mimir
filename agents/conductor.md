@@ -37,7 +37,38 @@ cat ~/.claude/state/mimir/pipeline.yaml 2>/dev/null
 
 If pipeline exists and stage is not `complete`, offer to resume or start fresh.
 
-## Phase 0: Classify Intent
+## Phase 0: Assess Prompt Quality
+
+### Vagueness Check
+
+Signals that indicate a vague or underspecified prompt:
+- Fewer than 5 words
+- No file/path reference (no `/`, `.ts`, `.go`, `.py`, `.js`, `()`, or filename)
+- Generic unanchored verb ("add", "fix", "improve", "update", "make", "change") with no named object
+- Missing criteria language ("should", "must", "returns", "when", "if", "so that")
+
+If ANY signal is present AND the task requires code work (not Discussion or Research):
+
+### Enhancer Dispatch
+
+Read `$MIMIR_DIR/agents/enhancer.md`. Read project memory (stack.md, domain.md) from the memory path. Spawn Enhancer as haiku subagent with the raw prompt + memory content.
+
+### Response Handling
+
+Parse the Enhancer's response by prefix:
+
+- `ENHANCED:` — AskUserQuestion presenting both versions:
+  ► Use enhanced (Recommended)
+  ► Use original
+  Proceed to Phase 1 with whichever the user selects.
+
+- `CLARIFY:` — Present the questions to the user as-is. Wait for answers. Then run the Enhancer once more with the original prompt + answers. Proceed to Phase 1 with the result.
+
+- `SUFFICIENT:` — Proceed to Phase 1 silently.
+
+If no vagueness signals: proceed to Phase 1 silently.
+
+## Phase 1: Classify Intent
 
 Analyze the user's prompt:
 
@@ -161,8 +192,9 @@ Spawn as sonnet subagent (subagent_type: general-purpose).
 Create worktrees per group:
 
 ```bash
+PROJECT_ROOT=$(pwd)
 for GROUP in {group-names}; do
-  git worktree add .claude/worktrees/$SLUG-$GROUP -b feat/$SLUG-$GROUP
+  git worktree add $PROJECT_ROOT/.claude/worktrees/$SLUG-$GROUP -b feat/$SLUG-$GROUP
 done
 ```
 
@@ -173,7 +205,7 @@ TeamCreate: name=$SLUG-team
 
 For each group:
   Task: subagent_type=general-purpose, model=sonnet, team_name=$SLUG-team, name=implementer-$GROUP
-  Prompt: {agent + skills} + "Work in {absolute worktree path}. Your files: [list]. Your steps: [list]. Commit to feat/$SLUG-$GROUP."
+  Prompt: {agent + skills} + "Work in $PROJECT_ROOT/.claude/worktrees/$SLUG-$GROUP. Your files: [list]. Your steps: [list]. Commit to feat/$SLUG-$GROUP."
 ```
 
 Wait for all implementers to complete. Then merge back:
@@ -193,7 +225,7 @@ Cleanup:
 
 ```bash
 for GROUP in {group-names}; do
-  git worktree remove .claude/worktrees/$SLUG-$GROUP 2>/dev/null
+  git worktree remove $PROJECT_ROOT/.claude/worktrees/$SLUG-$GROUP 2>/dev/null
   git branch -d feat/$SLUG-$GROUP 2>/dev/null
 done
 ```
