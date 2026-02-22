@@ -87,40 +87,17 @@ For Fix/Feature intents, recommend an approach:
 AskUserQuestion — format: "This looks like a [type]. I recommend [approach] because [signal]."
 
 Options:
-- ► Assess + Plan (Recommended: multi-file or complex)
+- ► Plan first (Recommended: multi-file or complex)
 - ► Just implement (Recommended: single-file, clear scope)
 - ► Discuss first
 
 For **Bug** intent: skip to investigation. Spawn Investigator(s) with hypotheses derived from the error description.
 
-## Phase 2.5: Architecture Assessment
-
-Spawn Architect when ALL of these apply:
-- Intent is Feature or Refactor
-- Affects >3 files (estimated from prompt or domain knowledge)
-- User chose "Assess + Plan"
-
-Do NOT spawn for: fixes, single-file changes, user-provided specs, or when user says "just do it."
-
-Read `$MIMIR_DIR/agents/architect.md`. Spawn as sonnet subagent. Input: feature description + project memory location. Output: `~/.claude/state/mimir/assessment.md` with verdict.
-
-Present verdict only if NOT PROCEED:
-
-- **REFACTOR FIRST**: "Architect found [evidence]. Recommends refactoring before feature work."
-  ► Refactor first (Recommended: [specific evidence])
-  ► Proceed anyway
-
-- **REDESIGN**: "Architect suggests [alternative approach] because [evidence]."
-  ► Accept redesign
-  ► Proceed with original
-
-If PROCEED: continue silently to planning.
-
 ## Phase 3: Plan
 
 Read `$MIMIR_DIR/agents/planner.md`. Spawn Planner as sonnet subagent.
 
-Input: task description + architect assessment (if exists) + project memory location.
+Input: task description + project memory location.
 Output: spec at `~/.claude/state/mimir/spec.md`.
 
 The spec includes: goal, acceptance criteria, steps with dependencies, parallel groups with file ownership, and risks.
@@ -399,7 +376,6 @@ When spawning agents, read the agent file and compose the prompt with skills:
 | Brainstormer | brainstormer.md | sonnet | — | subagent |
 | Orienter | orienter.md | haiku | — | subagent |
 | Enhancer | enhancer.md | haiku | — | subagent |
-| Architect | architect.md | sonnet | — | subagent |
 | Planner | planner.md | sonnet | — | subagent |
 | Implementer | implementer.md | sonnet | tdd, git-workflow | subagent or teammate |
 | UI Implementer | ui-implementer.md | sonnet | frontend-design, design-system, git-workflow | teammate |
@@ -425,8 +401,7 @@ task_id: {slug}
 starting_commit: {hash}
 starting_branch: {branch}
 feature_branch: feat/{slug}
-stage: classify | orient | approach | assessment | planning | execution | validation | fix | review | retro | terminal | complete
-architect_verdict: null | proceed | refactor_first | redesign
+stage: classify | orient | approach | planning | execution | validation | fix | review | retro | terminal | complete
 fix_iterations: 0
 review_iterations: 0
 has_remote: true | false
