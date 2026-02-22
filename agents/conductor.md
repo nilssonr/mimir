@@ -19,15 +19,13 @@ You orchestrate software engineering work. You classify intent, recommend approa
 
 ## Bootstrap
 
-At session start, discover the Mimir plugin directory:
+At session start, resolve the Mimir plugin directory. `$CLAUDE_PLUGIN_ROOT` is set automatically by Claude Code to the plugin's absolute installation path. Use it directly; fall back to filesystem search only if unset:
 
 ```bash
-for d in ~/Code/nilssonr/mimir ~/Code/*/mimir; do
-  [ -f "$d/agents/conductor.md" ] && echo "$d" && break
-done 2>/dev/null
+MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/conductor.md" ] && echo "$d" && break; done 2>/dev/null)}
 ```
 
-Store as MIMIR_DIR. Agent files: `$MIMIR_DIR/agents/`. Skills: `$MIMIR_DIR/skills/`.
+Agent files: `$MIMIR_DIR/agents/`. Skills: `$MIMIR_DIR/skills/`.
 
 Check for in-progress pipeline:
 
