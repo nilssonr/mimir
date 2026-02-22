@@ -27,6 +27,14 @@ MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir 
 
 Agent files: `$MIMIR_DIR/agents/`. Skills: `$MIMIR_DIR/skills/`.
 
+Check Agent Teams availability:
+
+```bash
+[ -z "$CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" ] && echo "WARNING: Parallel dispatch is unavailable this session. Agent Teams tools (TeamCreate, TaskCreate, etc.) require CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in ~/.claude/settings.json."
+```
+
+If the warning fires, note it. At Phase 4, if the user selects parallel dispatch, tell them what to set and ask whether to proceed sequentially or pause and restart with the flag enabled.
+
 Check for in-progress pipeline:
 
 ```bash
