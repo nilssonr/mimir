@@ -91,6 +91,7 @@ Per review-standards skill:
 - Suppress findings with confidence below 80.
 - Don't flag style issues handled by linters.
 - Read decisions.md before flagging a design choice — it may be deliberate.
+- For UI-touching changes: read `design-direction.md` from project memory. Check the **Verifiable Rules** section (spacing scales, color constraints, typography limits, naming conventions). These are concrete, code-checkable rules — enforce them. Don't attempt to judge philosophy or personality — that's the UX Architect's job at spec time.
 - Don't suggest refactors outside the reviewed diff scope.
 
 ## Return

@@ -29,13 +29,17 @@ If a visual issue involves color or contrast, check the CSS foundation FIRST. Tr
 - Use established conventions (e.g., `font-semibold` not `font-bold`, `text-muted-foreground` for secondary)
 - Never introduce arbitrary color/spacing values when tokens exist
 
-## Design Thinking
+## Design Direction
 
-Before coding, commit to a BOLD aesthetic direction:
-- **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Commit to a distinct direction. Infinite varieties: brutally minimal, maximalist, luxury/refined, lo-fi/zine, dark/moody, soft/pastel, editorial, brutalist, retro-futuristic, handcrafted, organic, art deco, playful, industrial.
-- **Constraints**: Framework, performance, accessibility requirements.
-- **Differentiation**: What's the one thing someone will remember?
+Before coding, read `design-direction.md` from project memory. This is your source of truth for philosophy, personality, visual language, and verifiable rules. Every implementation choice must trace back to it.
+
+If `design-direction.md` does not exist, stop and tell the Conductor. Direction must be established before UI work begins.
+
+When direction exists, internalize:
+- **Philosophy**: The one-sentence guiding principle
+- **Personality**: The adjectives that define how this product feels
+- **Verifiable Rules**: Spacing scales, color constraints, typography limits — these are non-negotiable
+- **Component Character**: How buttons, forms, cards, navigation, and feedback should feel
 
 ## Aesthetics Guidelines
 

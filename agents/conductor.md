@@ -225,10 +225,16 @@ done
 
 If feature involves UI (user mentions dashboard, component, page, frontend):
 
-1. Spawn UX Architect (sonnet subagent) → produces interaction spec
-2. Pass interaction spec to Planner as additional input
-3. Use UI Implementer instead of Implementer for frontend groups
-4. UI Implementer skills: frontend-design, design-system, git-workflow
+1. Check for design direction:
+   ```bash
+   find ~/.claude/projects/*/memory/design-direction.md 2>/dev/null | head -1
+   ```
+   If missing: read `$MIMIR_DIR/agents/brainstormer.md` and the design-direction.md template from `$MIMIR_DIR/agents/ux-architect.md` (under "Expected design-direction.md Format"). Spawn Brainstormer (sonnet subagent) with topic="design direction", the template, and project memory paths. It researches the domain, forms hypotheses, and drives a focused session with the user. Writes `design-direction.md` to project memory.
+   If exists: proceed.
+2. Spawn UX Architect (sonnet subagent) → reads `design-direction.md` → produces interaction spec
+3. Pass interaction spec + `design-direction.md` to Planner as additional input. Planner produces concrete plan with files, steps, groups.
+4. Use UI Implementer instead of Implementer for frontend groups
+5. UI Implementer prompt includes: plan + `design-direction.md` content + frontend-design skill + design-system skill + git-workflow skill
 
 ## Phase 5: Validation
 
@@ -390,6 +396,7 @@ When spawning agents, read the agent file and compose the prompt with skills:
 
 | Agent | File | Model | Skills | Type |
 |---|---|---|---|---|
+| Brainstormer | brainstormer.md | sonnet | — | subagent |
 | Orienter | orienter.md | haiku | — | subagent |
 | Enhancer | enhancer.md | haiku | — | subagent |
 | Architect | architect.md | sonnet | — | subagent |
