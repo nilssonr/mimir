@@ -64,10 +64,43 @@ Append process learnings. Each entry:
 |---|---|
 | Fix iterations > 0 | Process: what did the validator catch that the implementer missed? |
 | Review found critical/major | Process: what pattern should implementers follow? |
-| Architect said REFACTOR FIRST | Decision: what was wrong with the foundation? |
 | Planner's file ownership was wrong (merge conflict) | Process: improve file ownership detection |
 | Implementation was faster than expected | Process: what made it smooth? Repeat it. |
 | Validation passed first try | Process: what made it clean? |
+
+## Mimir Pipeline Issues
+
+In addition to project learnings, capture problems with the Mimir pipeline itself. Write these to `~/.claude/state/mimir/issues.md` (NOT project memory — this is Mimir's own issue tracker).
+
+```bash
+mkdir -p ~/.claude/state/mimir
+```
+
+Append issues in this format:
+
+```markdown
+### {date}: {issue title}
+- **Phase**: {classify | orient | plan | execute | validate | review | retro}
+- **Agent**: {which agent was involved}
+- **What happened**: {concrete description}
+- **Root cause**: {if identifiable, otherwise "unknown"}
+- **Status**: open
+```
+
+Pipeline issue triggers:
+
+| Signal | Issue |
+|---|---|
+| Conductor misclassified intent | Intent classification needs better signals |
+| Planner missed shared files between groups | File ownership detection failed |
+| Implementer went off-spec | Spec wasn't precise enough or implementer ignored constraints |
+| Validator false positive (flagged correct code) | Review standards too strict or context-blind |
+| Validator false negative (missed a real bug) | Review standards gap |
+| Worktree merge conflict | Planner's parallelization was wrong |
+| Hook blocked valid work | Hook matcher too broad |
+| Context compaction lost critical state | Pipeline state tracking insufficient |
+
+Only log genuine pipeline issues. "The code had a bug" is a project issue. "The planner didn't detect that two groups share a database migration file" is a pipeline issue.
 
 ## Quality Standards
 
