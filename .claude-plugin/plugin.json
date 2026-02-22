@@ -1,7 +1,7 @@
 {
   "name": "mimir",
-  "description": "Memory-first agent orchestration. The lead coordinates, teammates execute, shared memory persists knowledge across sessions.",
-  "version": "0.1.0",
+  "description": "Hybrid agent orchestration for Claude Code. Conductor classifies, recommends, and dispatches work via graduated dispatch (subagents for sequential, teams for parallel). Skills define workflow knowledge. Hooks enforce conventions.",
+  "version": "2.0.0",
   "author": {
     "name": "nilssonr"
   },
