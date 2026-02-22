@@ -1,0 +1,425 @@
+# Mimir
+
+A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, implements it, validates it, reviews it, and captures what it learned — then asks you what to do with the result.
+
+---
+
+## Table of Contents
+
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Agents](#agents)
+- [Skills](#skills)
+- [Hooks](#hooks)
+- [Memory](#memory)
+- [Pipeline state](#pipeline-state)
+- [Working on Mimir](#working-on-mimir)
+- [Design philosophy](#design-philosophy)
+
+---
+
+## How it works
+
+When you open a project with Mimir installed, **Odin** starts as your session agent. He classifies your intent, recommends an approach, and dispatches specialized agents to do the work. He never writes code himself.
+
+A typical feature pipeline:
+
+```
+You describe the task
+  → Odin orients (Huginn surveys the codebase if memory is stale)
+  → Odin recommends an approach (plan first / just implement / discuss)
+  → Frigg produces a spec: steps, file ownership, parallel groups
+  → Odin asks how to dispatch (1 Thor, or N parallel Thors in worktrees)
+  → Thor implements following write-only TDD
+  → Heimdall validates against acceptance criteria, runs tests
+  → Forseti reviews the diff for correctness, security, maintainability
+  → Saga captures learnings to project memory
+  → Odin asks: create PR / merge locally / discard
+```
+
+For UI features, Bragi establishes design direction and Freya produces interaction specs before Frigg plans and Volundr implements.
+
+For bugs, Skadi investigates hypotheses in parallel before implementation.
+
+---
+
+## Requirements
+
+- [Claude Code](https://code.claude.com) — latest version
+- Git — Mimir creates branches and worktrees
+- **For parallel dispatch** (multiple implementers): `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `~/.claude/settings.json`
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+Without this flag, parallel dispatch is unavailable. Odin will warn you at session start and fall back to sequential dispatch if you proceed without it.
+
+---
+
+## Installation
+
+### From GitHub
+
+```bash
+claude plugin install github:nilssonr/mimir
+```
+
+### From local clone
+
+```bash
+git clone https://github.com/nilssonr/mimir.git
+claude plugin install ./mimir
+```
+
+Mimir's `settings.json` sets Odin as the session agent automatically when the plugin is active. No additional configuration required.
+
+---
+
+## Usage
+
+### Starting a session
+
+Open any project directory with Claude Code. Odin starts automatically.
+
+```bash
+cd your-project
+claude
+```
+
+### Describing work
+
+Just describe what you want. Odin handles classification:
+
+```
+Add rate limiting to the API endpoints
+Fix the login redirect loop on mobile
+Review my changes on feat/auth-refactor
+How does the payment flow work?
+```
+
+**For vague prompts**, Odin dispatches Loki to enhance them using project memory. You'll see the enhanced version and choose to use it or the original.
+
+### Intent types
+
+| Intent | What Odin does |
+|---|---|
+| Feature / Fix | Plans and implements via the full pipeline |
+| Bug | Spawns Skadi to investigate hypotheses first |
+| Review | Spawns Forseti on a branch, PR, or codebase dimension |
+| Discussion | Answers directly, no pipeline |
+| Research | Answers directly, no pipeline |
+
+### Approach options
+
+For features and fixes, Odin presents a recommendation:
+
+- **Plan first** — Frigg explores the codebase and writes a spec before any code is written. Recommended for multi-file or complex work.
+- **Just implement** — Thor works directly from your description. Recommended for single-file, clear-scope tasks.
+- **Discuss first** — Talk through the approach before committing to implementation.
+
+### Dispatch options
+
+After Frigg produces a spec, Odin reads the step count, group count, and file ownership:
+
+- **Single Thor** — sequential, one worktree, no merge needed
+- **Parallel Thors** — each group in its own git worktree, merged after completion
+
+Odin states the observable signal: "Groups share no files → parallel" or "Shared migration file → sequential."
+
+### Review workflows
+
+| Command | What happens |
+|---|---|
+| "Review my changes" | Forseti diffs your branch against main |
+| "Review PR #42" | Forseti reads the PR via `gh` and reviews the diff |
+| "Code health" | Skadi instances investigate multiple dimensions in parallel |
+| "Review security of X" | Forseti with a security lens |
+
+### Terminal options
+
+At the end of a pipeline, Odin presents:
+
+- **Create PR** — pushes the feature branch and opens a PR via `gh`
+- **Merge locally** — merges the feature branch to your starting branch
+- **Discard** — resets to the starting commit, deletes the branch
+
+---
+
+## Agents
+
+All agents live in `agents/`. Odin reads agent files at dispatch time and composes Task prompts by combining agent instructions with relevant skills and task context.
+
+### Odin
+**File**: `agents/odin.md` | **Model**: Sonnet | **Entry point**: yes
+
+The orchestrator. Classifies intent, recommends approaches, dispatches agents, tracks pipeline state. Never writes source code. All decisions are presented with the observable signal that drives them.
+
+### Frigg
+**File**: `agents/frigg.md` | **Model**: Sonnet
+
+The planner. Explores the codebase, assesses what she finds (tech debt, test coverage gaps, coupling), decomposes into steps with file ownership, groups steps for parallelization, writes the spec. She assesses before decomposing — no silent planning on a shaky foundation.
+
+### Thor
+**File**: `agents/thor.md` | **Model**: Sonnet | **Skills**: tdd, git-workflow
+
+The implementer. Receives a spec or direct task, follows write-only TDD (writes tests first, never runs them), commits each step. Works in the project root or a dedicated git worktree for parallel dispatch.
+
+### Volundr
+**File**: `agents/volundr.md` | **Model**: Sonnet | **Skills**: frontend-design, design-system, git-workflow
+
+The frontend craftsman. Used instead of Thor for UI work. Implements from Freya's interaction spec, verifies visually using Chrome DevTools MCP, checks accessibility, iterates until it matches the spec.
+
+### Heimdall
+**File**: `agents/heimdall.md` | **Model**: Sonnet | **Skills**: review-standards
+
+The validator. Runs the full test suite, checks every acceptance criterion from the spec with a file:line citation, runs code quality tools, checks for regressions outside the spec's file scope. Read-only for source code. Produces `validation.md`.
+
+### Forseti
+**File**: `agents/forseti.md` | **Model**: Sonnet | **Skills**: review-standards
+
+The reviewer. Reviews diffs across 11 dimensions (correctness, security, error handling, performance, defensiveness, readability, cognitive load, testability, consistency, side effects, API design). Confidence-scores every finding, suppresses below 80. Reads `decisions.md` before flagging deliberate design choices. Produces `review.md`.
+
+### Saga
+**File**: `agents/saga.md` | **Model**: Haiku
+
+The keeper of memory. Runs after validation and review. Reads the spec, validation results, review findings, fix iteration count, and pipeline state (including `conductor_notes` for out-of-pipeline behavior). Writes decisions and process learnings to project memory. Logs genuine pipeline issues to `~/.claude/state/mimir/issues.md`.
+
+### Huginn
+**File**: `agents/huginn.md` | **Model**: Haiku
+
+Odin's raven of thought. Surveys a new or unfamiliar project and writes structured knowledge to project memory. Spawned when memory is missing or stale (detected by comparing `.orienter-state` commit hash against `HEAD`). Writes five memory files, then records the git state for freshness tracking.
+
+### Loki
+**File**: `agents/loki.md` | **Model**: Haiku
+
+The transformer. Receives a vague prompt and project memory context. Assesses confidence: if ≥70%, returns `ENHANCED:` with a filled-in prompt; if <70%, returns `CLARIFY:` with 2-3 targeted questions; if already specific, returns `SUFFICIENT:`. Never changes intent — only adds missing detail.
+
+### Bragi
+**File**: `agents/bragi.md` | **Model**: Sonnet
+
+The knowledge-first discovery agent. Researches before asking anything. Used for design direction sessions (and ad-hoc discovery work Odin invents for gaps in the roster). Decomposes topics into KNOWN / INFERRED / AMBIGUOUS, presents an informed draft for user correction, resolves all open questions before finalizing.
+
+### Skadi
+**File**: `agents/skadi.md` | **Model**: Sonnet
+
+The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi instances can run in parallel (via Agent Teams), each pursuing a different root cause theory. They share findings via SendMessage and Odin synthesizes the conclusion. Never fixes — only investigates.
+
+### Freya
+**File**: `agents/freya.md` | **Model**: Sonnet
+
+The UX designer. Requires `design-direction.md` in project memory. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
+
+### Mimir
+**File**: `agents/mimir.md` | **Model**: Sonnet
+
+The advisor. Used for working on Mimir itself — not on your projects. Reads project memory and past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground.
+
+---
+
+## Skills
+
+Skills are reusable instruction sets. Odin reads the relevant skill files and injects their content into agent Task prompts at dispatch time. They are not loaded via frontmatter — they're composed manually into the prompt.
+
+### tdd
+**File**: `skills/tdd/SKILL.md` | **Used by**: Thor, Volundr
+
+Write-only test-driven development. RED (write tests) → GREEN (write minimum implementation) → REFACTOR (clean up) → COMMIT. The critical constraint: **never run tests**. Heimdall runs all verification. This keeps Thor's context clean and separates concerns cleanly.
+
+### git-workflow
+**File**: `skills/git-workflow/SKILL.md` | **Used by**: Thor, Volundr
+
+Conventional commit format (`type(scope): description`), branching conventions, HEREDOC commit messages, pushing rules. The `commit-validator` hook enforces the format at the shell level — this skill teaches agents the same standard so they write correct messages the first time.
+
+### review-standards
+**File**: `skills/review-standards/SKILL.md` | **Used by**: Heimdall, Forseti
+
+11-dimension review checklist with confidence scoring (suppress below 80), severity levels (CRIT / WARN / INFO), calibration rules, and finding format. Shared between validation and review so both use identical standards.
+
+### frontend-design
+**File**: `skills/frontend-design/SKILL.md` | **Used by**: Volundr
+
+Production-grade UI guidelines: typography (avoid generic fonts), color (committed palettes, not timid distributions), motion (CSS-first, high-impact moments), spatial composition (asymmetry, scale jumps, negative space), anti-slop rules. Pre-build checklist: read existing patterns, verify CSS foundation, review design tokens.
+
+### design-system
+**File**: `skills/design-system/SKILL.md` | **Used by**: Volundr
+
+Project-specific design system conventions. Token categories (colors, typography, spacing, radii, shadows), component patterns, accessibility requirements. This skill is a template — customize it per project to encode your actual design tokens and component conventions.
+
+---
+
+## Hooks
+
+Hooks are deterministic enforcement. Unlike instructions (which models can ignore), shell scripts either exit 0 or they don't. All hooks are defined in `hooks/hooks.json` with `${CLAUDE_PLUGIN_ROOT}`-prefixed paths so they work regardless of installation location.
+
+### commit-validator
+**File**: `hooks/scripts/commit-validator.sh` | **Trigger**: `PreToolUse` → `Bash`
+
+Intercepts `git commit -m` commands before they execute. Validates the commit message against conventional commit format: `type(scope): description` where type is one of `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`. Exits 2 (blocks the commit) on violation. Handles both heredoc-style and simple `-m "message"` formats.
+
+### auto-format
+**File**: `hooks/scripts/auto-format.sh` | **Trigger**: `PostToolUse` → `Write|Edit`
+
+Runs the project's formatter on any file written or edited. Language detection by extension:
+
+| Extension | Formatter |
+|---|---|
+| `.go` | `gofmt` |
+| `.rs` | `rustfmt` |
+| `.ts`, `.tsx`, `.js`, `.jsx` | `prettier` |
+| `.cs` | `dotnet format` |
+| `.py` | `ruff format` |
+
+Silently skips if the formatter isn't installed or the file doesn't match.
+
+### session-start
+**File**: `hooks/scripts/session-start.sh` | **Trigger**: `SessionStart`
+
+Injects project context at the start of every session (including after compact and resume). Outputs a `<project-context>` block containing:
+- Current branch and last commit
+- Uncommitted file count
+- Detected stack (Go, Rust, Node/TS, C#, Python, Angular)
+- In-progress pipeline status (task ID + stage, if any)
+
+This gives Odin immediate orientation without reading files.
+
+### stop-gate
+**File**: `hooks/scripts/stop-gate.sh` | **Trigger**: `Stop`
+
+Blocks session completion when code changes are present but tests fail or changes are uncommitted. Detects the stack and runs the appropriate test runner. Checks for uncommitted source files after tests pass. Exits 2 to block; exits 0 to allow. Includes a `stop_hook_active` guard to prevent infinite loops.
+
+---
+
+## Memory
+
+Mimir maintains two kinds of memory: **project memory** (what this codebase is) and **pipeline memory** (what Mimir learned from running).
+
+### Project memory
+
+**Location**: `~/.claude/projects/{project-slug}/memory/`
+
+The project slug is the absolute project path with `/` replaced by `-` (e.g., `/Users/you/Code/myapp` → `-Users-you-Code-myapp`).
+
+#### How it's written
+
+Huginn writes project memory on the first run, and whenever memory is stale (the commit hash in `.orienter-state` doesn't match `HEAD`).
+
+| File | Contents |
+|---|---|
+| `stack.md` | Language, version, frameworks, key dependencies, build tools, test runner, linter, formatter, package manager |
+| `structure.md` | Directory layout, package/module boundaries, key files, entry points |
+| `conventions.md` | Error handling patterns, test patterns, naming conventions, DI approach, code style beyond linters |
+| `architecture.md` | Key abstractions, data flow, API patterns, auth model, state management, database access |
+| `domain.md` | Business entities, API surface, domain-specific terminology |
+| `.orienter-state` | Git commit hash, branch, dirty flag, timestamp — used to detect staleness |
+
+Every claim in memory files must reference a specific file. Huginn never speculates.
+
+#### How it's read
+
+Odin reads `stack.md` and `domain.md` when dispatching Loki (prompt enhancement). Agents receive relevant memory files injected into their Task prompts by Odin at dispatch time — they do not read memory themselves unless specified in their instructions.
+
+Frigg reads all five memory files to anchor her plans in the actual codebase. Thor reads `conventions.md` and `stack.md` to match existing patterns. Forseti reads `conventions.md`, `architecture.md`, and `decisions.md` before reviewing.
+
+#### Design direction (UI projects)
+
+For features involving UI, Bragi conducts a design direction session and writes `design-direction.md` to project memory. This file defines:
+
+- **Philosophy**: One-sentence guiding principle
+- **Personality**: Adjectives that describe how the product should feel
+- **Visual language**: References, density, typography, color, motion preferences
+- **Verifiable rules**: Concrete constraints checkable in code (spacing scale, color tokens, typography limits, naming conventions) — Forseti enforces these during review
+- **Constraints**: What's always required and what's never allowed
+- **Component character**: How buttons, forms, cards, navigation, and feedback should feel
+
+Once written, `design-direction.md` persists across all future UI work for the project. Freya reads it before every interaction spec. Volundr reads it before every implementation. Forseti enforces the Verifiable Rules section on every UI diff.
+
+#### Project-level learnings
+
+Saga writes two additional memory files after every successful pipeline run:
+
+| File | Contents |
+|---|---|
+| `decisions.md` | Technical choices worth remembering: what was chosen, why, what was considered |
+| `process.md` | Process learnings: what happened, the impact, what to do next time |
+
+These accumulate over time. Frigg reads `decisions.md` to avoid re-litigating settled choices. Forseti reads it to avoid flagging deliberate design decisions as problems.
+
+---
+
+### Pipeline memory
+
+**Location**: `~/.claude/state/mimir/`
+
+#### pipeline.yaml
+
+Odin writes this file at the start of execution and updates `stage` at every phase transition. It enables resume after context compaction.
+
+```yaml
+task_id: feature-slug
+starting_commit: abc1234
+starting_branch: main
+feature_branch: feat/feature-slug
+stage: execution          # classify | orient | approach | planning | execution |
+                          # validation | fix | review | retro | terminal | complete
+fix_iterations: 0         # how many fix loops Heimdall triggered
+review_iterations: 0      # how many review fix loops
+has_remote: true
+worktrees: []
+conductor_notes:          # out-of-pipeline events Odin appended
+  - "2026-02-22: Created discovery team before planning"
+```
+
+If you open a session and `pipeline.yaml` exists with a non-`complete` stage, Odin offers to resume or start fresh.
+
+#### issues.md
+
+Saga writes genuine pipeline issues here after each run. These are problems with how Mimir itself behaved — not bugs in your code. Examples: Frigg's file ownership was wrong and caused a merge conflict, Heimdall flagged correct code, a hook matcher was too broad.
+
+Format:
+```markdown
+### 2026-02-22: issue title
+- **Phase**: plan
+- **Agent**: Frigg
+- **What happened**: concrete description
+- **Root cause**: if identifiable
+- **Status**: open
+```
+
+The Mimir advisor agent reads `issues.md` at every session start and uses it to prioritize improvements.
+
+---
+
+## Working on Mimir
+
+Use the Mimir advisor agent when you want to improve Mimir itself:
+
+```bash
+claude --agent mimir:mimir --plugin-dir /path/to/mimir
+```
+
+Mimir reads project memory and `issues.md` at bootstrap, then advises based on accumulated evidence. It will challenge bad ideas, propose incremental changes, and research Claude Code internals when needed. Every recommendation is labeled KNOWN, INFERRED, or UNCERTAIN.
+
+Do not use Odin for Mimir development — that would route through the implementation pipeline. The Mimir agent is the correct entry point for architectural discussion, improvement proposals, and issue triage.
+
+---
+
+## Design philosophy
+
+**Sparse spec.** Less prescription produces better model behavior. Mimir v1 had a 46KB conductor that violated its own rules in every experiment. Mimir v2's Odin is ~450 lines and works better. When behavior emerges that works well, the correct response is not to codify it into rules — it's to note it in `issues.md` and learn from runs.
+
+**Graduated dispatch.** Direct response → single subagent → parallel team, based on observable signals. Agent Teams cost significantly more tokens than subagents. The default is always the simplest option that fits the work.
+
+**Deterministic enforcement via hooks.** Instructions can be ignored. Shell scripts cannot. Conventional commit format, auto-formatting, and test gates are enforced at the tool level — not via prose in agent files.
+
+**Write-only TDD.** Thor writes tests but never runs them. Heimdall runs everything. This keeps implementation context focused on writing, not on interpreting test output. Clean separation of concerns.
+
+**Memory over context.** Mimir doesn't cram everything into a single long conversation. It writes to memory files, reads what's relevant, and discards the rest. This keeps each agent's context window focused on its actual job.
+
+**Learn from runs.** Saga captures what happened — what Heimdall caught that Thor missed, what made a pipeline smooth, what Frigg got wrong about file ownership. Issues go to `issues.md`. Project learnings go to project memory. The system improves with use.
