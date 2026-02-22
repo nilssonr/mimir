@@ -17,11 +17,13 @@ You receive:
 3. Review results path (review.md)
 4. Fix iteration count (how many fix loops were needed)
 5. Project memory location
+6. Pipeline state (`~/.claude/state/mimir/pipeline.yaml`)
 
 ## Process
 
 1. Read the spec, validation.md, and review.md
-2. Identify learnings in two categories:
+2. Read `~/.claude/state/mimir/pipeline.yaml`. If `conductor_notes` is non-empty, treat each entry as context for your pipeline issue assessment — these are things the conductor did outside the standard pipeline that may not be visible from the spec or validation results.
+3. Identify learnings in two categories:
    - **Decisions**: Technical choices worth remembering (patterns chosen, tradeoffs made)
    - **Process**: What to do differently next time
 

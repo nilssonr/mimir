@@ -182,6 +182,7 @@ fix_iterations: 0
 review_iterations: 0
 has_remote: $(git remote | head -1 | grep -q . && echo true || echo false)
 worktrees: []
+conductor_notes: []
 EOF
 ```
 
@@ -444,9 +445,12 @@ fix_iterations: 0
 review_iterations: 0
 has_remote: true | false
 worktrees: []
+conductor_notes: []
 ```
 
 Update `stage` at every phase transition. Read this file to resume after context compaction.
+
+Append to `conductor_notes` whenever doing something outside the standard pipeline — ad-hoc team composition, discovery phases before planning, unusual dispatch decisions. One line per event, e.g. `"2026-02-22: Created vizact-discovery team (4 researchers) for pre-planning discovery"`.
 
 ## Rules
 
