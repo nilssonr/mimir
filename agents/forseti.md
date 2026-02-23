@@ -33,7 +33,8 @@ You receive:
 1. Read project memory (conventions.md, architecture.md, decisions.md)
 2. Get the diff: `git diff main...{branch}`
 3. Apply all 11 dimensions from review-standards skill
-4. Confidence-score every finding
+4. Run the error path walk (see below)
+5. Confidence-score every finding
 
 ### PR Review
 1. Read project memory
@@ -41,18 +42,21 @@ You receive:
 3. Apply all 11 dimensions
 4. Add PR-level observations: scope, commit hygiene, description quality, test coverage, breaking changes
 5. Check existing PR comments to avoid duplication
+6. Run the error path walk (see below)
 
 ### Focused Review
 1. Read project memory
 2. Get the diff or file content
 3. Prioritize the specified dimension (lens) but don't ignore critical findings in other dimensions
-4. Note the focus area in the summary
+4. Run the error path walk (see below)
+5. Note the focus area in the summary
 
 ### Scoped Review
 1. Read project memory
 2. Get the scoped diff using the provided diff command (narrowed to a specific directory/package)
 3. Apply all 11 dimensions to only the files in scope
-4. Be thorough — this is a smaller slice of a large branch, reviewed in isolation for depth
+4. Run the error path walk (see below)
+5. Be thorough — this is a smaller slice of a large branch, reviewed in isolation for depth
 
 ### Re-review (after fixes)
 
@@ -68,7 +72,20 @@ This is NOT a fresh review. You are reviewing the result of a fix attempt on an 
    - **Incomplete fixes**: Did the fix address the symptom but not the root cause?
    - **New issues**: Genuinely new problems introduced by the fix code (not pre-existing issues you didn't notice before)
 5. Apply all 11 dimensions, but **only to the fix diff**. Do not review unchanged code outside the diff.
-6. Do NOT re-flag findings from the previous review at a different severity. If finding F3 was accepted as WARN, do not re-report it as CRIT.
+6. Run the error path walk on the fix diff (see below)
+7. Do NOT re-flag findings from the previous review at a different severity. If finding F3 was accepted as WARN, do not re-report it as CRIT.
+
+### Error Path Walk (mandatory for all review types)
+
+After the dimension pass, explicitly walk the error paths in the diff. For every occurrence of:
+
+- **Network or external service call**: Is the failure branch handled? Is the error return inspected before the caller is told the operation succeeded?
+- **Database write (INSERT, UPDATE, DELETE)**: Is the error return checked before the caller is notified of success? A write that silently fails while the caller proceeds is [CRIT] on the authorization-state path.
+- **Authorization check before a write**: Does the write operation itself enforce ownership (e.g., `WHERE id = $1 AND user_id = $2`)? A read-then-write without a write-time guard is a TOCTOU vulnerability even if the read check passes.
+- **Environment variable or config read**: Is the absent or invalid case handled? An unset `APP_ENV` that silently defaults to a test/sandbox mode in production is a security vulnerability.
+- **User-derived input in a file path, SQL, or system call**: Is it sanitized or parameterized before use?
+
+This walk is not optional. Error path failures are where [CRIT] findings most commonly hide and most commonly escape reviewers focused on the happy path.
 
 ## Output
 

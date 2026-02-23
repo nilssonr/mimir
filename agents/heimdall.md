@@ -47,8 +47,12 @@ If your prompt contains `Revalidation: true`:
 5. Run code quality checks (see Code Standards below).
 6. Check for regressions: files modified outside the spec's file list?
 7. **Date/time sensitive code**: For any service that handles dates, calendar dates, streaks, sessions indexed by date, or time-relative scheduling — check whether the tests cover users in different timezones. If the implementation derives the "current date" from a system clock without converting to the user's local timezone, tests that only run in one timezone will pass while hiding failures for users in other timezones. Flag this as CONCERNS under correctness with a note describing the gap.
-8. Confidence-score every finding per review-standards skill.
-9. Write validation.md.
+8. **Security pass**: Even when all criteria pass and all tests are green, examine the diff for:
+   - **Input sanitization**: User-derived values used in file paths, SQL queries, or system calls — are they parameterized or sanitized before use? Unsanitized user input in a path or query is [CRIT].
+   - **Write-time ownership**: Data mutation operations (UPDATE, DELETE, file writes) — does the write operation itself enforce ownership (e.g., `WHERE id = $1 AND user_id = $2`)? An ownership check at read time only (SELECT to verify, then UPDATE without user_id guard) is a TOCTOU vulnerability even if the read passes. Flag as [CRIT].
+   - **Silent write failures**: Any operation that updates authorization state, marks an action complete, or upgrades user access — is the error return inspected before the caller is notified of success? A discarded write error where the caller considers the operation complete is [CRIT].
+9. Confidence-score every finding per review-standards skill.
+10. Write validation.md.
 
 ## Test Execution
 
