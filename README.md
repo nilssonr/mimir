@@ -407,7 +407,9 @@ These accumulate over time. Frigg reads `decisions.md` to avoid re-litigating se
 
 ### Pipeline memory
 
-**Location**: `~/.claude/state/mimir/`
+**Location**: `~/.claude/state/mimir/{project-slug}/`
+
+The project slug is derived the same way as for project memory — the absolute project path with `/` replaced by `-`. Each project gets its own state directory, so multiple projects can have pipelines in progress simultaneously.
 
 #### pipeline.yaml
 
@@ -431,6 +433,8 @@ conductor_notes:          # out-of-pipeline events Odin appended
 If you open a session and `pipeline.yaml` exists with a non-`complete` stage, Odin offers to resume or start fresh.
 
 #### issues.md
+
+**Location**: `~/.claude/state/mimir/issues.md` (global — not project-scoped)
 
 Saga writes genuine pipeline issues here after each run. These are problems with how Mimir itself behaved — not bugs in your code. Examples: Frigg's file ownership was wrong and caused a merge conflict, Heimdall flagged correct code, a hook matcher was too broad.
 

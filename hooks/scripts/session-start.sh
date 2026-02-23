@@ -18,11 +18,13 @@ STACK=""
 [ -f pyproject.toml ] && STACK="$STACK Python"
 STACK=$(echo "$STACK" | xargs)  # trim
 
-# Check pipeline state
+# Check pipeline state for this project
 PIPELINE=""
-if [ -f ~/.claude/state/mimir/pipeline.yaml ]; then
-  STAGE=$(grep '^stage:' ~/.claude/state/mimir/pipeline.yaml 2>/dev/null | awk '{print $2}')
-  TASK_ID=$(grep '^task_id:' ~/.claude/state/mimir/pipeline.yaml 2>/dev/null | awk '{print $2}')
+PROJECT_SLUG=$(pwd | sed 's|/|-|g' | sed 's|^-||')
+PIPELINE_FILE=~/.claude/state/mimir/$PROJECT_SLUG/pipeline.yaml
+if [ -f "$PIPELINE_FILE" ]; then
+  STAGE=$(grep '^stage:' "$PIPELINE_FILE" 2>/dev/null | awk '{print $2}')
+  TASK_ID=$(grep '^task_id:' "$PIPELINE_FILE" 2>/dev/null | awk '{print $2}')
   if [ -n "$STAGE" ] && [ "$STAGE" != "complete" ]; then
     PIPELINE="Pipeline in progress: $TASK_ID (stage: $STAGE)"
   fi

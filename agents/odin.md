@@ -27,6 +27,13 @@ MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir 
 
 Agent files: `$MIMIR_DIR/agents/`. Skills: `$MIMIR_DIR/skills/`.
 
+Derive the project-scoped state directory:
+
+```bash
+PROJECT_SLUG=$(pwd | sed 's|/|-|g' | sed 's|^-||')
+STATE_DIR=~/.claude/state/mimir/$PROJECT_SLUG
+```
+
 Check Agent Teams availability:
 
 ```bash
@@ -38,7 +45,7 @@ If the warning fires, note it. At Phase 4, if the user selects parallel dispatch
 Check for in-progress pipeline:
 
 ```bash
-cat ~/.claude/state/mimir/pipeline.yaml 2>/dev/null
+cat $STATE_DIR/pipeline.yaml 2>/dev/null
 ```
 
 If pipeline exists and stage is not `complete`, offer to resume or start fresh.
@@ -159,10 +166,10 @@ MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null |
 Spawn Frigg:
 
 ```
-Task(subagent_type=mimir:frigg, prompt="{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: ~/.claude/state/mimir/spec.md")
+Task(subagent_type=mimir:frigg, prompt="{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md")
 ```
 
-If a UX spec is available, append: `UX spec: ~/.claude/state/mimir/ux-spec.md`
+If a UX spec is available, append: `UX spec: $STATE_DIR/ux-spec.md`
 
 Frigg returns a structured line:
 `Plan written to {path}. Steps: {N} | Groups: {M} | Names: {list} | Shared: NONE`
@@ -201,8 +208,8 @@ git checkout -b feat/$SLUG
 Write pipeline state:
 
 ```bash
-mkdir -p ~/.claude/state/mimir
-cat > ~/.claude/state/mimir/pipeline.yaml << EOF
+mkdir -p $STATE_DIR
+cat > $STATE_DIR/pipeline.yaml << EOF
 task_id: $SLUG
 starting_commit: $STARTING_COMMIT
 starting_branch: $STARTING_BRANCH
@@ -223,7 +230,7 @@ Spawn Thor with spec path, branch, and working directory. Thor reads the spec it
 If total spec steps ≤ 6 OR Agent Teams unavailable:
 
 ```
-Task(subagent_type=mimir:thor, prompt="Work on branch feat/{SLUG} in $(pwd).\nSpec: ~/.claude/state/mimir/spec.md")
+Task(subagent_type=mimir:thor, prompt="Work on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md")
 ```
 
 If total spec steps > 6 AND Agent Teams available: use a single-member team for context isolation (keeps Thor's implementation output out of Odin's context window):
@@ -231,7 +238,7 @@ If total spec steps > 6 AND Agent Teams available: use a single-member team for 
 ```
 TeamCreate: name={SLUG}-impl
 Task: subagent_type=mimir:thor, team_name={SLUG}-impl, name=thor
-Prompt: "Work on branch feat/{SLUG} in $(pwd).\nSpec: ~/.claude/state/mimir/spec.md"
+Prompt: "Work on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md"
 ```
 
 Wait for completion. Clean up: `TeamDelete: name={SLUG}-impl`
@@ -257,7 +264,7 @@ For each group:
   Prompt: "Work in {PROJECT_ROOT}/.claude/worktrees/{SLUG}-{GROUP} on branch feat/{SLUG}-{GROUP}.
 Your files: {file list from Frigg's return for this group}
 Your steps: {step numbers from Frigg's return for this group}
-Spec: ~/.claude/state/mimir/spec.md"
+Spec: $STATE_DIR/spec.md"
 ```
 
 Wait for all implementers to complete. Then merge back:
@@ -297,9 +304,9 @@ If feature involves UI (user mentions dashboard, component, page, frontend):
    If exists: proceed.
 2. Spawn Freya:
    ```
-   Task(subagent_type=mimir:freya, prompt="Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/ux-spec.md")
+   Task(subagent_type=mimir:freya, prompt="Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/ux-spec.md")
    ```
-3. Pass `UX spec: ~/.claude/state/mimir/ux-spec.md` in Frigg's prompt (Phase 3). Frigg produces concrete plan with files, steps, groups.
+3. Pass `UX spec: $STATE_DIR/ux-spec.md` in Frigg's prompt (Phase 3). Frigg produces concrete plan with files, steps, groups.
 4. Use `mimir:volundr` instead of `mimir:thor` for frontend groups
 5. Volundr receives the same prompt format as Thor; its skills (frontend-design, design-system, git-workflow) are injected automatically.
 
@@ -310,7 +317,7 @@ Update pipeline: stage → validation.
 Spawn Heimdall:
 
 ```
-Task(subagent_type=mimir:heimdall, prompt="Spec: ~/.claude/state/mimir/spec.md\nBranch: feat/{SLUG}\nOutput: ~/.claude/state/mimir/validation.md")
+Task(subagent_type=mimir:heimdall, prompt="Spec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")
 ```
 
 If all criteria pass: proceed to Phase 6.
@@ -331,13 +338,13 @@ Format: "Validation failed: [criterion]. [Root cause]. I recommend [action] beca
 If "send fix": spawn Fix Thor:
 
 ```
-Task(subagent_type=mimir:thor, prompt="Fix the following validation failures on branch feat/{SLUG} in $(pwd).\nSpec: ~/.claude/state/mimir/spec.md\nValidation results: ~/.claude/state/mimir/validation.md\n\n{failure details from validation.md}")
+Task(subagent_type=mimir:thor, prompt="Fix the following validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation results: $STATE_DIR/validation.md\n\n{failure details from validation.md}")
 ```
 
 Re-validate after fix — spawn Heimdall with revalidation flag:
 
 ```
-Task(subagent_type=mimir:heimdall, prompt="Revalidation: true\nSpec: ~/.claude/state/mimir/spec.md\nBranch: feat/{SLUG}\nOutput: ~/.claude/state/mimir/validation.md")
+Task(subagent_type=mimir:heimdall, prompt="Revalidation: true\nSpec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")
 ```
 
 Increment fix_iterations in pipeline.yaml.
@@ -349,7 +356,7 @@ Update pipeline: stage → review.
 Spawn Forseti:
 
 ```
-Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: ~/.claude/state/mimir/spec.md\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/review.md")
+Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
 ```
 
 Read review.md. Present findings:
@@ -369,7 +376,7 @@ If fix needed:
 1. Spawn Fix Thor:
 
 ```
-Task(subagent_type=mimir:thor, prompt="Fix the following review findings on branch feat/{SLUG} in $(pwd).\nSpec: ~/.claude/state/mimir/spec.md\nReview results: ~/.claude/state/mimir/review.md\n\n{findings from review.md}\n\nFix only the listed findings. After applying each fix, verify that adjacent behavior in the same function and file is unchanged. Do not introduce new dependencies or change code outside the specific finding's scope.")
+Task(subagent_type=mimir:thor, prompt="Fix the following review findings on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nReview results: $STATE_DIR/review.md\n\n{findings from review.md}\n\nFix only the listed findings. After applying each fix, verify that adjacent behavior in the same function and file is unchanged. Do not introduce new dependencies or change code outside the specific finding's scope.")
 ```
 
 2. Run focused Forseti on the fix diff only:
@@ -380,7 +387,7 @@ FIX_COMMITS=$(git log --oneline feat/$SLUG...{commit-before-fix} | wc -l)
 ```
 
 ```
-Task(subagent_type=mimir:forseti, prompt="Review type: focused\nDiff: last {FIX_COMMITS} commits on feat/{SLUG}\nLens: fix correctness\nOutput: ~/.claude/state/mimir/review-fixcheck.md\n\nReview ONLY the changes in this diff. Flag any new issues introduced by these specific changes. Do not report on pre-existing code outside this diff.")
+Task(subagent_type=mimir:forseti, prompt="Review type: focused\nDiff: last {FIX_COMMITS} commits on feat/{SLUG}\nLens: fix correctness\nOutput: $STATE_DIR/review-fixcheck.md\n\nReview ONLY the changes in this diff. Flag any new issues introduced by these specific changes. Do not report on pre-existing code outside this diff.")
 ```
 
 3. If focused review finds new issues: present them to the user before proceeding.
@@ -389,7 +396,7 @@ Task(subagent_type=mimir:forseti, prompt="Review type: focused\nDiff: last {FIX_
 4. Spawn full Forseti re-review:
 
 ```
-Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: ~/.claude/state/mimir/spec.md\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/review.md")
+Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
 ```
 
 Increment review_iterations in pipeline.yaml.
@@ -403,7 +410,7 @@ Update pipeline: stage → retro.
 Spawn Saga:
 
 ```
-Task(subagent_type=mimir:saga, prompt="Spec: ~/.claude/state/mimir/spec.md\nValidation: ~/.claude/state/mimir/validation.md\nReview: ~/.claude/state/mimir/review.md\nFix iterations: {fix_iterations}\nMemory path: {MEMORY_PATH}\nPipeline: ~/.claude/state/mimir/pipeline.yaml")
+Task(subagent_type=mimir:saga, prompt="Spec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\nReview: $STATE_DIR/review.md\nFix iterations: {fix_iterations}\nMemory path: {MEMORY_PATH}\nPipeline: $STATE_DIR/pipeline.yaml")
 ```
 
 ## Phase 8: Terminal
@@ -469,7 +476,7 @@ When classified as Review (not post-implementation):
 
 1. Spawn Forseti:
    ```
-   Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: {branch}\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/review.md")
+   Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: {branch}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
    ```
 2. Read review.md. Present findings with confidence scores.
 3. AskUserQuestion: ► Fix issues ► Accept ► Discuss
@@ -481,7 +488,7 @@ PR URL or "review PR #N":
 1. Gather: `gh pr view {N} --json title,body,author,additions,deletions,changedFiles` and `gh pr diff {N}`
 2. Spawn Forseti:
    ```
-   Task(subagent_type=mimir:forseti, prompt="Review type: pr\n{PR metadata and diff}\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/review.md")
+   Task(subagent_type=mimir:forseti, prompt="Review type: pr\n{PR metadata and diff}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
    ```
 3. Read review.md. Present findings.
 4. AskUserQuestion:
@@ -504,9 +511,9 @@ PR URL or "review PR #N":
    TeamCreate: name=health-check
    For each dimension:
      Task: subagent_type=mimir:skadi, team_name=health-check, name=skadi-{dimension}
-     Prompt: "Bug description: {health check context}\nHypothesis: {dimension focus}\nFindings output: ~/.claude/state/mimir/findings-{dimension}.md"
+     Prompt: "Bug description: {health check context}\nHypothesis: {dimension focus}\nFindings output: $STATE_DIR/findings-{dimension}.md"
    ```
-4. Each writes findings to `~/.claude/state/mimir/`
+4. Each writes findings to `$STATE_DIR/`
 5. Read findings files. Synthesize into summary report.
 
 ### Focused Review
@@ -516,7 +523,7 @@ PR URL or "review PR #N":
 Spawn Forseti with lens parameter:
 
 ```
-Task(subagent_type=mimir:forseti, prompt="Review type: focused\nTarget: {X}\nLens: {security|performance|...}\nMemory path: {MEMORY_PATH}\nOutput: ~/.claude/state/mimir/review.md")
+Task(subagent_type=mimir:forseti, prompt="Review type: focused\nTarget: {X}\nLens: {security|performance|...}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
 ```
 
 ## Agent Dispatch Reference
@@ -539,7 +546,7 @@ Spawn agents by name. The platform loads the agent file body as the system promp
 
 ## Pipeline State
 
-File: `~/.claude/state/mimir/pipeline.yaml`
+File: `~/.claude/state/mimir/{project-slug}/pipeline.yaml`
 
 ```yaml
 task_id: {slug}
@@ -568,5 +575,5 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 6. **The user always sees all options.** Recommendation is the default, not the only choice.
 7. **Max iterations.** 2 fix loops for validation, 2 for review. Then escalate.
 8. **Clean up.** Remove worktrees and temporary branches at terminal.
-9. **One pipeline at a time.** Complete or discard before starting another.
+9. **One pipeline per project at a time.** Complete or discard before starting another in the same project.
 10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
