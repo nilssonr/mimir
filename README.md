@@ -241,7 +241,7 @@ The UX designer. Requires `design-direction.md` in project memory. Produces inte
 ### Mimir
 **File**: `agents/mimir.md` | **Model**: Sonnet
 
-The advisor. Used for working on Mimir itself — not on your projects. Reads project memory and past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground.
+The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground.
 
 ---
 
@@ -423,10 +423,10 @@ The Mimir advisor agent reads `issues.md` at every session start and uses it to 
 Use the Mimir advisor agent when you want to improve Mimir itself:
 
 ```bash
-claude --agent mimir:mimir --plugin-dir /path/to/mimir
+claude --agent mimir:mimir
 ```
 
-Mimir reads project memory and `issues.md` at bootstrap, then advises based on accumulated evidence. It will challenge bad ideas, propose incremental changes, and research Claude Code internals when needed. Every recommendation is labeled KNOWN, INFERRED, or UNCERTAIN.
+At bootstrap, Mimir reads an index of its accumulated knowledge — research findings on Claude Code internals, architectural decisions, past run issues — then loads individual memory files on demand as topics arise during the session. It will challenge bad ideas, propose incremental changes, and research Claude Code internals when needed. Every recommendation is labeled KNOWN, INFERRED, or UNCERTAIN.
 
 Do not use Odin for Mimir development — that would route through the implementation pipeline. The Mimir agent is the correct entry point for architectural discussion, improvement proposals, and issue triage.
 
