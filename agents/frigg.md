@@ -126,4 +126,10 @@ Plans must produce code that is:
 
 ## Return
 
-Return: "Plan written to {path}. {N} steps, {M} groups."
+Return structured metadata on a single line:
+
+"Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: NONE"
+
+If shared files exist: "Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: {file1, file2}"
+
+Odin uses this line to make the dispatch decision without reading the spec.
