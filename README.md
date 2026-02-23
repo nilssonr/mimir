@@ -3,25 +3,25 @@
 A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, implements it, validates it, reviews it, and captures what it learned — then asks you what to do with the result.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#6b7280'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#94a3b8'}}}%%
 flowchart LR
-    classDef you    fill:#d4a017,stroke:#92620e,stroke-width:3px,color:#1a1100,font-weight:bold
-    classDef odin   fill:#d4a017,stroke:#92620e,stroke-width:3px,color:#1a1100,font-weight:bold
-    classDef core   fill:#1e3a5f,stroke:#4a8fd4,stroke-width:2px,color:#dbeafe
-    classDef memory fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#dcfce7
-    classDef side   fill:#1f2937,stroke:#6b7280,stroke-width:1px,color:#d1d5db,stroke-dasharray:5 3
+    classDef you    fill:#fde68a,stroke:#d97706,stroke-width:2px,color:#1c1917,font-weight:bold
+    classDef odin   fill:#f59e0b,stroke:#92400e,stroke-width:3px,color:#1c1917,font-weight:bold
+    classDef core   fill:#e0e7ff,stroke:#4338ca,stroke-width:2px,color:#312e81
+    classDef memory fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#064e3b
+    classDef side   fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569,stroke-dasharray:4 3
 
     You((You)):::you
-    O{{Odin}}:::odin
-    Hu([Huginn]):::side
-    Lo([Loki]):::side
-    Sk([Skadi]):::side
-    Br([Bragi · Freya]):::side
-    Fr[Frigg]:::core
-    T[Thor]:::core
-    He[Heimdall]:::core
-    Fo[Forseti]:::core
-    Sa[(Saga)]:::memory
+    O{{"Odin<br/>orchestrator"}}:::odin
+    Hu(["Huginn<br/>orient & survey"]):::side
+    Lo(["Loki<br/>sharpen prompts"]):::side
+    Sk(["Skadi<br/>hunt bugs"]):::side
+    Br(["Bragi · Freya<br/>UI & design"]):::side
+    Fr["Frigg<br/>plan & spec"]:::core
+    T["Thor<br/>implement"]:::core
+    He["Heimdall<br/>validate"]:::core
+    Fo["Forseti<br/>review"]:::core
+    Sa[("Saga<br/>remember")]:::memory
 
     You --> O
     O -.->|stale memory| Hu
