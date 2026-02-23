@@ -333,10 +333,10 @@ If failures exist, read validation.md and present:
 
 Format: "Validation failed: [criterion]. [Root cause]. I recommend [action] because [signal]."
 
-If "send fix": spawn Fix Thor:
+If "send fix": spawn Fix Thor. Describe the problem — do not prescribe code. Thor reads validation.md for details and designs the fix himself.
 
 ```
-Task(subagent_type=mimir:thor, prompt="Fix the following validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation results: $STATE_DIR/validation.md\n\n{failure details from validation.md}")
+Task(subagent_type=mimir:thor, prompt="Fix validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\n\nFailed criteria: {criterion numbers and one-line descriptions, e.g., 'Criterion 4: shared package missing from api dependencies'}")
 ```
 
 Re-validate after fix — spawn Heimdall with revalidation flag:
@@ -351,11 +351,40 @@ Increment fix_iterations in pipeline.yaml.
 
 Update pipeline: stage → review.
 
-Spawn Forseti:
+### Initial Review
+
+Check diff scope:
+
+```bash
+CHANGED_FILES=$(git diff --name-only $STARTING_BRANCH...feat/$SLUG | wc -l | tr -d ' ')
+```
+
+**≤50 files** — single review:
 
 ```
 Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
 ```
+
+**>50 files** — scoped review. Group changed files by directory:
+
+```bash
+git diff --name-only $STARTING_BRANCH...feat/$SLUG | awk -F/ 'NF>=2{print $1"/"$2} NF<2{print $1}' | sort | uniq -c | sort -rn
+```
+
+Dispatch one Forseti per scope (each reviews only its slice of the diff):
+
+```
+For each scope:
+  Task(subagent_type=mimir:forseti, prompt="Review type: scoped\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nScope: {scope}\nDiff command: git diff {STARTING_BRANCH}...feat/{SLUG} -- {scope}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review-{scope-slug}.md")
+```
+
+After all scoped reviews complete, combine findings into `$STATE_DIR/review.md`:
+
+```bash
+cat $STATE_DIR/review-*.md > $STATE_DIR/review.md
+```
+
+### Triage
 
 Read review.md. Present findings:
 
@@ -367,37 +396,41 @@ Read review.md. Present findings:
 
 Format: "Review found [N] findings: [breakdown]. [Most important]. I recommend [action] because [signal]."
 
-### Fix and Re-review (max 2 iterations)
-
-If fix needed:
-
-1. Spawn Fix Thor:
-
-```
-Task(subagent_type=mimir:thor, prompt="Fix the following review findings on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nReview results: $STATE_DIR/review.md\n\n{findings from review.md}\n\nFix only the listed findings. After applying each fix, verify that adjacent behavior in the same function and file is unchanged. Do not introduce new dependencies or change code outside the specific finding's scope.")
-```
-
-2. Run focused Forseti on the fix diff only:
+After user decides which findings to fix vs accept, write review state:
 
 ```bash
-FIX_COMMITS=$(git log --oneline feat/$SLUG...{commit-before-fix} | wc -l)
-# pass this count to Forseti's prompt
+cat > $STATE_DIR/review-state.yaml << EOF
+iteration: 1
+findings:
+  - id: "F1"
+    status: fixed
+  - id: "F2"
+    status: accepted
+  ...
+EOF
+```
+
+### Fix and Re-review (max 2 iterations)
+
+1. Spawn Fix Thor. Describe the problem — do not prescribe code. Thor reads review.md for details and designs the fix himself.
+
+```
+Task(subagent_type=mimir:thor, prompt="Fix review findings on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nReview: $STATE_DIR/review.md\n\nFix these findings: {finding IDs and one-line descriptions, e.g., 'F1: session re-completion allows streak inflation, F3: missing JWT_SECRET validation'}")
+```
+
+2. Record the pre-fix commit, then spawn Forseti re-review — stateful and scoped to the fix diff:
+
+```bash
+PRE_FIX_COMMIT=$(git rev-parse HEAD~{number of Thor's fix commits})
 ```
 
 ```
-Task(subagent_type=mimir:forseti, prompt="Review type: focused\nDiff: last {FIX_COMMITS} commits on feat/{SLUG}\nLens: fix correctness\nOutput: $STATE_DIR/review-fixcheck.md\n\nReview ONLY the changes in this diff. Flag any new issues introduced by these specific changes. Do not report on pre-existing code outside this diff.")
+Task(subagent_type=mimir:forseti, prompt="Review type: re-review\nBranch: feat/{SLUG}\nFix diff: git diff {PRE_FIX_COMMIT}...HEAD\nPrevious review: $STATE_DIR/review.md\nReview state: $STATE_DIR/review-state.yaml\nOutput: $STATE_DIR/review.md")
 ```
 
-3. If focused review finds new issues: present them to the user before proceeding.
-   Format: "Fix introduced [N] new issues: [summary]. I recommend fixing these before the full re-review because [signal]."
+3. If re-review finds new issues: present to user. Update review-state.yaml with new finding statuses.
 
-4. Spawn full Forseti re-review:
-
-```
-Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
-```
-
-Increment review_iterations in pipeline.yaml.
+4. Increment review_iterations in pipeline.yaml.
 
 If iteration count = 2 and findings remain: escalate to user. Present findings and ask whether to fix (exceeds limit), accept, or discuss.
 
@@ -578,3 +611,4 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 9. **One pipeline per project at a time.** Complete or discard before starting another in the same project.
 10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
 11. **Never use `subagent_type=general-purpose` for named pipeline agents.** Always use `mimir:{agent}`. Never read agent or skill files before spawning.
+12. **Never prescribe code in fix dispatches.** Describe the problem (finding ID, one-line summary, affected files). Thor reads the review/validation output and designs the fix. You are a conductor, not an engineer — prescribing code bypasses Thor's judgment and produces incomplete fixes.
