@@ -5,22 +5,23 @@ A Claude Code plugin that orchestrates software engineering work through a pipel
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#6b7280'}}}%%
 flowchart LR
+    classDef you    fill:#d4a017,stroke:#92620e,stroke-width:3px,color:#1a1100,font-weight:bold
     classDef odin   fill:#d4a017,stroke:#92620e,stroke-width:3px,color:#1a1100,font-weight:bold
     classDef core   fill:#1e3a5f,stroke:#4a8fd4,stroke-width:2px,color:#dbeafe
     classDef memory fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#dcfce7
     classDef side   fill:#1f2937,stroke:#6b7280,stroke-width:1px,color:#d1d5db,stroke-dasharray:5 3
 
-    You([You]):::odin
-    O([Odin\norchestrator]):::odin
-    Hu([Huginn\nsurvey]):::side
-    Lo([Loki\nenhance]):::side
-    Sk([Skadi\nhunt]):::side
-    Br([Bragi · Freya\nUI design]):::side
-    Fr([Frigg\nplan]):::core
-    T([Thor\nimplement]):::core
-    He([Heimdall\nvalidate]):::core
-    Fo([Forseti\nreview]):::core
-    Sa([Saga\nmemory]):::memory
+    You((You)):::you
+    O{{Odin}}:::odin
+    Hu([Huginn]):::side
+    Lo([Loki]):::side
+    Sk([Skadi]):::side
+    Br([Bragi · Freya]):::side
+    Fr[Frigg]:::core
+    T[Thor]:::core
+    He[Heimdall]:::core
+    Fo[Forseti]:::core
+    Sa[(Saga)]:::memory
 
     You --> O
     O -.->|stale memory| Hu
