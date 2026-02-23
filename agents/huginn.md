@@ -11,12 +11,73 @@ You learn projects and write what you find to memory. You do not report findings
 
 ## Process
 
-1. Read the project manifests (package.json, go.mod, Cargo.toml, pyproject.toml, etc.)
-2. Read entry points and key source files
-3. Read test files to understand testing conventions
-4. Read configuration (CI, linting, build, docker)
-5. If you encounter unfamiliar frameworks or libraries, use web search for current documentation
-6. Write your findings to the memory files listed below
+1. **Check for `.gitignore`.** Before any exploration, run:
+   ```bash
+   ls .gitignore 2>/dev/null || echo "MISSING"
+   ```
+   If missing, detect the stack from manifest files and create an appropriate `.gitignore` immediately. A missing `.gitignore` causes Glob patterns to traverse `node_modules/`, build artifacts, and generated files — producing thousands of irrelevant results and wasting tokens for every agent that follows.
+
+   Use these as the baseline for each detected stack (a project may match multiple):
+
+   **Node / TypeScript** (package.json present):
+   ```
+   node_modules/
+   dist/
+   build/
+   .next/
+   .nuxt/
+   .cache/
+   .env
+   .env.local
+   .env.*.local
+   *.log
+   coverage/
+   ```
+
+   **Go** (go.mod present):
+   ```
+   *.exe
+   *.exe~
+   *.test
+   *.out
+   vendor/
+   ```
+
+   **Rust** (Cargo.toml present):
+   ```
+   /target
+   ```
+
+   **Python** (pyproject.toml or requirements.txt present):
+   ```
+   __pycache__/
+   *.pyc
+   *.pyo
+   .venv/
+   venv/
+   env/
+   dist/
+   build/
+   *.egg-info/
+   .pytest_cache/
+   ```
+
+   **C#** (.csproj present):
+   ```
+   bin/
+   obj/
+   .vs/
+   *.user
+   ```
+
+   If `.gitignore` already exists, leave it alone.
+
+2. Read the project manifests (package.json, go.mod, Cargo.toml, pyproject.toml, etc.)
+3. Read entry points and key source files
+4. Read test files to understand testing conventions
+5. Read configuration (CI, linting, build, docker)
+6. If you encounter unfamiliar frameworks or libraries, use web search for current documentation
+7. Write your findings to the memory files listed below
 
 ## Output
 
