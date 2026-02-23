@@ -146,17 +146,55 @@ Analyze the user's prompt:
 | Intent | Signals |
 |---|---|
 | Discussion | Questions about concepts, decisions, architecture. No code change. |
-| Research | "How does X work?", "What's the approach for Y?" |
+| Research | "How does X work?", "What's the approach for Y?", "Research X" |
 | Fix | "Fix X", "X is broken", file:line reference with clear change |
 | Feature | "Add X", "Create X", "Build X", new functionality |
 | Bug | "X doesn't work", error messages, unexpected behavior |
 | Review | "Review X", PR URL, branch name, "how's the code?" |
 
-**Direct handling** (no dispatch): Discussion, Research.
+**Direct handling** (no dispatch): Discussion.
+**Research dispatch**: Research → Bragi (see Research Dispatch below).
 **Dispatch to pipeline**: Fix, Feature, Bug.
 **Review pipeline**: Review (see Review Intents section).
 
 For Review, sub-classify: Branch, PR, Health, or Focused.
+
+### Research Dispatch
+
+When intent is Research, resolve the memory path and spawn Bragi as a team member. Read `stack.md` and `domain.md` to populate `Established` before composing the handoff.
+
+```bash
+MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
+mkdir -p $STATE_DIR
+```
+
+```
+TeamCreate: name=$PROJECT_SLUG-research
+Task: subagent_type=mimir:bragi, team_name=$PROJECT_SLUG-research, name=bragi
+Prompt: "Topic: {precise question distilled from user's prompt}
+
+Established:
+{relevant facts from stack.md and domain.md — stack, frameworks, domain concepts that bear on the question}
+
+Investigate:
+- {specific unknown the user is asking about}
+- {additional dimensions if multiple unknowns}
+
+Purpose: {what the user will do with this information — evaluate an approach, make a decision, understand a concept}
+
+Constraints: {stack/platform/version constraints from memory, if relevant}
+Depth: standard
+Output: $STATE_DIR/research.md"
+
+[wait for completion]
+
+SendMessage: teammate=bragi, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-research
+```
+
+If Agent Teams unavailable: `Task(subagent_type=mimir:bragi, prompt="...")`
+
+Read `$STATE_DIR/research.md`. Present Confidence, Key finding, and Synthesis to the user. If Open questions flag an escalation need, offer to re-invoke Bragi at Deep depth.
 
 ## Phase 1: Orient
 
@@ -373,11 +411,25 @@ If feature involves UI (user mentions dashboard, component, page, frontend):
    ```bash
    find ~/.claude/projects/*/memory/design-direction.md 2>/dev/null | head -1
    ```
-   If missing: spawn Bragi as a team member:
+   If missing: spawn Bragi as a team member to establish design direction:
    ```
    TeamCreate: name=$PROJECT_SLUG-design
    Task: subagent_type=mimir:bragi, team_name=$PROJECT_SLUG-design, name=bragi
-   Prompt: "Topic: design direction\nMimir agents path: {MIMIR_DIR}/agents\nMemory path: {MEMORY_PATH}\nOutput: {MEMORY_PATH}/design-direction.md\n\nRead {MIMIR_DIR}/agents/freya.md for the expected design-direction.md format."
+   Prompt: "Topic: Design direction for this project
+
+Established:
+{relevant facts from domain.md and decisions.md — project type, intended users, any prior design decisions or constraints}
+
+Investigate:
+- Visual design language appropriate for this project's domain and users
+- Typography, color palette, motion, and density conventions
+- Component character: how buttons, forms, cards, navigation, and feedback should feel
+
+Purpose: Produce design-direction.md with the structure Freya requires before writing interaction specs. Read {MIMIR_DIR}/agents/freya.md for the exact expected format (Philosophy, Personality, Visual language, Verifiable rules, Constraints, Component character).
+
+Constraints: {stack from stack.md}
+Depth: deep
+Output: {MEMORY_PATH}/design-direction.md"
 
    [wait for completion]
 

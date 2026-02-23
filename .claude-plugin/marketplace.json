@@ -9,7 +9,7 @@
       "name": "mimir",
       "source": "./",
       "description": "Agent orchestration for Claude Code. Plans, implements, validates, and reviews software work through a pipeline of specialized agents.",
-      "version": "2.5.4",
+      "version": "2.5.5",
       "author": {
         "name": "nilssonr"
       },

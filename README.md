@@ -16,7 +16,8 @@ flowchart LR
     Hu(["Huginn<br/>orient & survey"]):::side
     Lo(["Loki<br/>sharpen prompts"]):::side
     Sk(["Skadi<br/>hunt bugs"]):::side
-    Br(["Bragi · Freya<br/>UI & design"]):::side
+    Br(["Bragi<br/>research"]):::side
+    Fy(["Freya<br/>UX design"]):::side
     Fr["Frigg<br/>plan & spec"]:::core
     T["Thor<br/>implement"]:::core
     He["Heimdall<br/>validate"]:::core
@@ -27,9 +28,11 @@ flowchart LR
     O -.->|stale memory| Hu
     O -.->|vague prompt| Lo
     O -.->|bug| Sk
-    O -.->|UI feature| Br
+    O -.->|research| Br
+    O -.->|UI feature| Fy
+    Br -.-> Fy
+    Fy -.-> Fr
     O -->|feature · fix| Fr
-    Br -.-> Fr
     Fr --> T --> He --> Fo --> Sa --> O
 ```
 
@@ -167,7 +170,7 @@ How does the payment flow work?
 | Bug | Spawns Skadi to investigate hypotheses first |
 | Review | Spawns Forseti on a branch, PR, or codebase dimension |
 | Discussion | Answers directly, no pipeline |
-| Research | Answers directly, no pipeline |
+| Research | Dispatches Bragi to research; presents findings |
 
 ### Approach options
 
@@ -257,7 +260,7 @@ The transformer. Receives a vague prompt and project memory context. Uses five d
 ### Bragi
 **File**: `agents/bragi.md` | **Model**: Sonnet
 
-The knowledge-first discovery agent. Researches before asking anything. Used for design direction sessions (and ad-hoc discovery work Odin invents for gaps in the roster). Decomposes topics into KNOWN / INFERRED / AMBIGUOUS, presents an informed draft for user correction, resolves all open questions before finalizing.
+The research agent. Resolves known unknowns from external sources so that Odin and Mimir can make decisions from evidence. Dispatched for Research intents and for design direction sessions (when `design-direction.md` is missing). Receives a structured handoff — Topic, Established (pre-classified facts Bragi won't re-research), Investigate (known unknowns), Purpose, Constraints, Depth — and returns Confidence, Key finding, Synthesis with KNOWN/INFERRED/UNCERTAIN labels, and Open questions. Talks to agents, not humans — never interrupts execution to ask questions.
 
 ### Skadi
 **File**: `agents/skadi.md` | **Model**: Sonnet
@@ -267,12 +270,12 @@ The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi ins
 ### Freya
 **File**: `agents/freya.md` | **Model**: Sonnet
 
-The UX designer. Requires `design-direction.md` in project memory. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
+The UX designer. Requires `design-direction.md` in project memory (written by Bragi). Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
 
 ### Mimir
 **File**: `agents/mimir.md` | **Model**: Sonnet
 
-The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground.
+The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground. Can dispatch Bragi for research tasks that require external sources.
 
 ---
 
@@ -382,7 +385,7 @@ Frigg reads all five memory files to anchor her plans in the actual codebase. Th
 
 #### Design direction (UI projects)
 
-For features involving UI, Bragi conducts a design direction session and writes `design-direction.md` to project memory. This file defines:
+For features involving UI, Bragi conducts a design direction research session and writes `design-direction.md` to project memory. This file defines:
 
 - **Philosophy**: One-sentence guiding principle
 - **Personality**: Adjectives that describe how the product should feel
