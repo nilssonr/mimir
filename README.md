@@ -194,12 +194,12 @@ The keeper of memory. Runs after validation and review. Reads the spec, validati
 ### Huginn
 **File**: `agents/huginn.md` | **Model**: Haiku
 
-Odin's raven of thought. Surveys a new or unfamiliar project and writes structured knowledge to project memory. Spawned when memory is missing or stale (detected by comparing `.orienter-state` commit hash against `HEAD`). Writes five memory files, then records the git state for freshness tracking.
+Odin's raven of thought. Surveys a new or unfamiliar project and writes structured knowledge to project memory. Spawned when memory is missing or stale (detected by comparing `.orienter-state` commit hash against `HEAD`). First creates a stack-appropriate `.gitignore` if one is missing — preventing Glob patterns from traversing `node_modules/` and build artifacts on every subsequent agent run. Then writes five memory files and records the git state for freshness tracking.
 
 ### Loki
 **File**: `agents/loki.md` | **Model**: Haiku
 
-The transformer. Receives a vague prompt and project memory context. Assesses confidence: if ≥70%, returns `ENHANCED:` with a filled-in prompt; if <70%, returns `CLARIFY:` with 2-3 targeted questions; if already specific, returns `SUFFICIENT:`. Never changes intent — only adds missing detail.
+The transformer. Receives a vague prompt and project memory context. Uses five dimensions (scope, context, acceptance criteria, constraints, file references) to decide: `SUFFICIENT` if the prompt is already specific, `ENHANCED` if memory can fill the gaps, or `CLARIFY` if only the user can resolve the ambiguity. CLARIFY questions always lead with what Loki found in context — never generic interrogation. If CLARIFY is needed twice, Odin stops and tells the user to rephrase rather than proceeding with an underspecified prompt.
 
 ### Bragi
 **File**: `agents/bragi.md` | **Model**: Sonnet
