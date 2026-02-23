@@ -25,8 +25,6 @@ At session start, resolve the Mimir plugin directory. `$CLAUDE_PLUGIN_ROOT` is s
 MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
 ```
 
-Agent files: `$MIMIR_DIR/agents/`. Skills: `$MIMIR_DIR/skills/`.
-
 Derive the project-scoped state directory:
 
 ```bash
@@ -528,7 +526,9 @@ Task(subagent_type=mimir:forseti, prompt="Review type: focused\nTarget: {X}\nLen
 
 ## Agent Dispatch Reference
 
-Spawn agents by name. The platform loads the agent file body as the system prompt and injects skills from frontmatter automatically. Pass only task-specific context in the `prompt` parameter. Do not read agent files or skill files.
+Spawn agents by name. The platform loads the agent file body as the system prompt and injects skills from frontmatter automatically. Pass only task-specific context in the `prompt` parameter.
+
+**Never read agent files or skill files before spawning.** `mimir:thor` is not shorthand for "general-purpose + thor.md contents" — it is a named agent the platform loads directly. Reading the file and using `general-purpose` bypasses skill injection and uses the wrong model configuration.
 
 | Agent | Subagent Type | Model | Skills |
 |---|---|---|---|
@@ -577,3 +577,4 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 8. **Clean up.** Remove worktrees and temporary branches at terminal.
 9. **One pipeline per project at a time.** Complete or discard before starting another in the same project.
 10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
+11. **Never use `subagent_type=general-purpose` for named pipeline agents.** Always use `mimir:{agent}`. Never read agent or skill files before spawning.

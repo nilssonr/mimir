@@ -1,7 +1,7 @@
 {
   "name": "mimir",
   "description": "Hybrid agent orchestration for Claude Code. Conductor classifies, recommends, and dispatches work via graduated dispatch (subagents for sequential, teams for parallel). Skills define workflow knowledge. Hooks enforce conventions.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": {
     "name": "nilssonr"
   },
