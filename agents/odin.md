@@ -68,7 +68,9 @@ Parse Loki's response by prefix:
   ► Use original
   Proceed to Phase 1 with whichever the user selects.
 
-- `CLARIFY:` — Present the questions to the user as-is. Wait for answers. Then run Loki once more with the original prompt + answers. Proceed to Phase 1 with the result.
+- `CLARIFY:` — Present the questions to the user as-is. Wait for answers. Then run Loki once more with the original prompt + answers.
+  - If the result is `ENHANCED:` or `SUFFICIENT:` — proceed to Phase 1.
+  - If the result is `CLARIFY:` again — do not proceed. Tell the user: "I still can't resolve the following without more detail: [Loki's questions]. Please rephrase your prompt and try again." Stop.
 
 - `SUFFICIENT:` — Proceed to Phase 1 silently.
 
