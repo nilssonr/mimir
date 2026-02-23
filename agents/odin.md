@@ -123,7 +123,17 @@ CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null)
 
 Read .huginn-state. If `commit:` doesn't match CURRENT_HEAD, memory is stale.
 
-If stale or missing: spawn Huginn:
+If stale or missing: spawn Huginn. If Agent Teams available, use a single-member team to keep Huginn's output out of Odin's context:
+
+```
+TeamCreate: name=$PROJECT_SLUG-orient
+Task: subagent_type=mimir:huginn, team_name=$PROJECT_SLUG-orient, name=huginn
+Prompt: "{project_directory}"
+```
+
+Wait for completion. Clean up: `TeamDelete: name=$PROJECT_SLUG-orient`
+
+If Agent Teams unavailable:
 
 ```
 Task(subagent_type=mimir:huginn, prompt="{project_directory}")
@@ -161,13 +171,23 @@ Resolve the memory path if not already set:
 MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
 ```
 
-Spawn Frigg:
+Spawn Frigg. If Agent Teams available, use a single-member team to keep Frigg's planning output out of Odin's context:
+
+```
+TeamCreate: name=$PROJECT_SLUG-plan
+Task: subagent_type=mimir:frigg, team_name=$PROJECT_SLUG-plan, name=frigg
+Prompt: "{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md"
+```
+
+Wait for completion. Clean up: `TeamDelete: name=$PROJECT_SLUG-plan`
+
+If Agent Teams unavailable:
 
 ```
 Task(subagent_type=mimir:frigg, prompt="{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md")
 ```
 
-If a UX spec is available, append: `UX spec: $STATE_DIR/ux-spec.md`
+If a UX spec is available, append to the prompt: `UX spec: $STATE_DIR/ux-spec.md`
 
 Frigg returns a structured line:
 `Plan written to {path}. Steps: {N} | Groups: {M} | Names: {list} | Shared: NONE`
