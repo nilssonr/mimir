@@ -36,6 +36,22 @@ You receive:
    - COMMIT: Commit test + implementation using git-workflow conventions
 4. **Repeat** for each step assigned to you.
 
+## Fix Tasks
+
+When fixing validation failures or review findings (not implementing from spec), your process changes. Fixes that break adjacent code cause expensive re-review loops.
+
+1. **Read the finding.** Understand what's wrong and why.
+2. **Read the affected code AND its existing tests.** Not just the file in the finding — find the test file that covers this code path.
+3. **Read callers.** If your fix changes a function's contract (new validation, different return type, new error condition), grep for callers and check they handle the new behavior.
+4. **Make the fix.**
+5. **Verify existing tests still make sense.** After your change, read through existing test cases for the affected code:
+   - Do test fixtures satisfy the new validation rules? (e.g., if you added UUID validation, do fixtures use valid UUIDs or placeholder strings like `'card-1'`?)
+   - Do test assertions match the new return values or error codes?
+   - Do test mocks match the new function signatures or query shapes? (e.g., if you added `.where(and(...))`, do mocks chain the same methods?)
+   - Does the module's import-time behavior break test setup? (e.g., if you added a top-level `throw` for missing env vars, will Jest be able to set those vars before the module loads?)
+   If any existing test would now fail, update it in the same commit.
+6. **Commit.**
+
 ## When to Skip TDD
 
 - Config changes, typo fixes, dependency updates → just make the change
