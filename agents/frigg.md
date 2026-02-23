@@ -22,11 +22,12 @@ You receive:
 1. Read project memory (stack.md, structure.md, conventions.md, architecture.md, domain.md)
 2. Explore the specific files and modules affected by the task
 3. **Assess what you see.** Before decomposing, evaluate the affected area. If you find missing test coverage, high coupling, or tech debt that would make the feature fragile, include preparatory steps before feature steps. If the proposed approach conflicts with existing patterns, note the tradeoff. Don't silently plan on top of a shaky foundation.
-4. Identify what exists vs what needs to change
-5. Decompose into implementation steps
-6. Assign file ownership per step
-7. Group steps for parallelization
-8. Write the spec file
+4. **Read callers.** If the feature introduces an interceptor, adapter, wrapper, or replacement for existing code, find and read every module that calls the code being replaced or intercepted. Map the exact call contracts: method signatures, argument shapes, path formats, any parameters added or transformed before the call is made. The spec must reflect what callers actually send — not what the type signature suggests or what the task description implies.
+5. Identify what exists vs what needs to change
+6. Decompose into implementation steps
+7. Assign file ownership per step
+8. Group steps for parallelization
+9. Write the spec file
 
 ## Output
 
@@ -71,7 +72,7 @@ Shared files: NONE | [list with explanation]
 Merge strategy: clean merge expected | manual resolution needed for [files]
 
 ## Risks
-- {risk 1: what might go wrong and how to mitigate}
+- {risk 1 — documentation only: things that are out of scope or require human action}
 - {risk 2}
 ```
 
@@ -123,6 +124,8 @@ Plans must produce code that is:
 - Name concrete functions, types, and interfaces in detail. "Add a handler" is too vague. "Add handleCreateUser in server/routes/users.ts, following the pattern in handleCreateTicket (server/routes/tickets.ts:45)" is actionable.
 - Reference existing patterns from memory with file:line examples.
 - Tests field must name specific patterns: "Add table-driven test in __tests__/users.test.ts following __tests__/tickets.test.ts:12."
+- **Mitigations become steps.** If you identify a risk and state a mitigation, convert the mitigation into a numbered spec step with a file and a test. A prose warning in the Risks section is invisible to Thor. The Risks section is for out-of-scope items and human-action items only — not for unimplemented work.
+- **Adapter and interceptor features require integration path tests.** If a feature intercepts or replaces an existing call path, the spec must include at least one test that exercises the real path from the existing caller to the new module. Tests that call the new module directly verify only the module in isolation; they cannot catch contract mismatches with the caller. At least one test must call the unmodified caller code and assert that the new module receives and handles the call correctly.
 
 ## Return
 
