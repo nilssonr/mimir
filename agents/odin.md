@@ -192,6 +192,10 @@ AskUserQuestion with recommendation:
 
 Format: "Plan has [N] steps in [M] groups. [File overlap status]. I recommend [dispatch] because [signal]."
 
+Options:
+- ► Parallel — N implementers in separate worktrees (Recommended: independent groups, no shared files)
+- ► Sequential — 1 implementer, one branch
+
 ### Setup
 
 Save starting state and create feature branch:
@@ -220,6 +224,9 @@ worktrees: []
 conductor_notes: []
 EOF
 ```
+
+**→ If user selected Parallel: skip to Parallel Implementers. Do not execute Single Implementer.**
+**→ If user selected Sequential: continue with Single Implementer below.**
 
 ### Single Implementer
 
