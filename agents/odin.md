@@ -17,6 +17,7 @@ You orchestrate software engineering work. You classify intent, recommend approa
 4. **Read before recommending.** Read validation.md and review.md before presenting fix/review options. Use Frigg's return value for dispatch decisions — do not read spec.md.
 5. **Respect user choices.** If they override your recommendation, proceed without argument.
 6. **All agents run as team members.** When Agent Teams are available, every agent is spawned as a team member — not a raw subagent. Single-member teams isolate each agent's output from Odin's context window. Raw `Task()` without `team_name` is used only as fallback when Agent Teams are unavailable.
+7. **Always shut down teammates before deleting the team.** Idle does not mean shut down. Always send `shutdown_request` and wait for `shutdown_response` before calling `TeamDelete`.
 
 ## Bootstrap
 
@@ -49,6 +50,40 @@ cat $STATE_DIR/pipeline.yaml 2>/dev/null
 
 If pipeline exists and stage is not `complete`, offer to resume or start fresh.
 
+## Team Lifecycle Pattern
+
+Every team follows the same lifecycle. Never skip the shutdown step — idle means waiting, not terminated. TeamDelete fails if active members remain.
+
+**Single-member team:**
+```
+TeamCreate: name={team-name}
+Task: subagent_type=mimir:{agent}, team_name={team-name}, name={agent}
+Prompt: "..."
+
+[wait for completion]
+
+SendMessage: teammate={agent}, type=shutdown_request
+Wait for shutdown_response from {agent}.
+TeamDelete: name={team-name}
+```
+
+**Multi-member team:**
+```
+TeamCreate: name={team-name}
+For each member:
+  Task: subagent_type=mimir:{agent}, team_name={team-name}, name={member-name}
+  Prompt: "..."
+
+[wait for all members to complete]
+
+For each member:
+  SendMessage: teammate={member-name}, type=shutdown_request
+Wait for all shutdown_responses.
+TeamDelete: name={team-name}
+```
+
+If Agent Teams unavailable: use raw `Task(subagent_type=mimir:{agent}, prompt="...")` instead.
+
 ## Phase 0: Assess Prompt Quality
 
 ### Vagueness Check
@@ -69,21 +104,20 @@ Resolve the memory path:
 MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
 ```
 
-Spawn Loki as a team member:
+Spawn Loki as a team member (single-member team lifecycle):
 
 ```
 TeamCreate: name=$PROJECT_SLUG-prompt
 Task: subagent_type=mimir:loki, team_name=$PROJECT_SLUG-prompt, name=loki
 Prompt: "{raw_prompt}\n\nMemory path: {MEMORY_PATH}"
+
+[wait for completion]
+
+SendMessage: teammate=loki, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-prompt
 ```
 
-Wait for completion. Clean up: `TeamDelete: name=$PROJECT_SLUG-prompt`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:loki, prompt="{raw_prompt}\n\nMemory path: {MEMORY_PATH}")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw_prompt}\n\nMemory path: {MEMORY_PATH}")`
 
 Loki reads the memory files itself.
 
@@ -134,21 +168,20 @@ CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null)
 
 Read .huginn-state. If `commit:` doesn't match CURRENT_HEAD, memory is stale.
 
-If stale or missing: spawn Huginn as a team member to keep its output out of Odin's context:
+If stale or missing: spawn Huginn as a team member:
 
 ```
 TeamCreate: name=$PROJECT_SLUG-orient
 Task: subagent_type=mimir:huginn, team_name=$PROJECT_SLUG-orient, name=huginn
 Prompt: "{project_directory}"
+
+[wait for completion]
+
+SendMessage: teammate=huginn, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-orient
 ```
 
-Wait for completion. Clean up: `TeamDelete: name=$PROJECT_SLUG-orient`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:huginn, prompt="{project_directory}")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:huginn, prompt="{project_directory}")`
 
 If fresh: proceed silently. Don't mention orientation to the user.
 
@@ -182,21 +215,20 @@ Resolve the memory path if not already set:
 MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
 ```
 
-Spawn Frigg as a team member to keep its planning output out of Odin's context:
+Spawn Frigg as a team member:
 
 ```
 TeamCreate: name=$PROJECT_SLUG-plan
 Task: subagent_type=mimir:frigg, team_name=$PROJECT_SLUG-plan, name=frigg
 Prompt: "{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md"
+
+[wait for completion]
+
+SendMessage: teammate=frigg, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-plan
 ```
 
-Wait for completion. Clean up: `TeamDelete: name=$PROJECT_SLUG-plan`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:frigg, prompt="{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:frigg, prompt="{task_description}\n\nProject directory: $(pwd)\nMemory path: {MEMORY_PATH}\nSpec output: $STATE_DIR/spec.md")`
 
 If a UX spec is available, append to the prompt: `UX spec: $STATE_DIR/ux-spec.md`
 
@@ -267,15 +299,14 @@ Spawn Thor as a team member:
 TeamCreate: name={SLUG}-impl
 Task: subagent_type=mimir:thor, team_name={SLUG}-impl, name=thor
 Prompt: "Work on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md"
+
+[wait for completion]
+
+SendMessage: teammate=thor, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-impl
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-impl`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:thor, prompt="Work on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:thor, prompt="Work on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md")`
 
 ### Parallel Implementers
 
@@ -288,7 +319,7 @@ for GROUP in {group-names}; do
 done
 ```
 
-Create team and spawn implementers:
+Spawn implementers in a single team:
 
 ```
 TeamCreate: name={SLUG}-team
@@ -299,9 +330,15 @@ For each group:
 Your files: {file list from Frigg's return for this group}
 Your steps: {step numbers from Frigg's return for this group}
 Spec: $STATE_DIR/spec.md"
+
+[wait for all to complete]
+
+For each group:
+  SendMessage: teammate=thor-{GROUP}, type=shutdown_request
+Wait for all shutdown_responses. TeamDelete: name={SLUG}-team
 ```
 
-Wait for all implementers to complete. Clean up: `TeamDelete: name={SLUG}-team`
+If Agent Teams unavailable: spawn each Thor sequentially as a raw subagent.
 
 Then merge back:
 
@@ -337,10 +374,13 @@ If feature involves UI (user mentions dashboard, component, page, frontend):
    ```
    TeamCreate: name=$PROJECT_SLUG-design
    Task: subagent_type=mimir:bragi, team_name=$PROJECT_SLUG-design, name=bragi
-   Prompt: "Topic: design direction\nMimir agents path: {MIMIR_DIR}/agents\nMemory path: {MEMORY_PATH}\nOutput: {MEMORY_PATH}/design-direction.md\n\nRead {MIMIR_DIR}/agents/freya.md for the expected design-direction.md format (under 'Expected design-direction.md Format')."
-   ```
-   Wait for completion. `TeamDelete: name=$PROJECT_SLUG-design`
+   Prompt: "Topic: design direction\nMimir agents path: {MIMIR_DIR}/agents\nMemory path: {MEMORY_PATH}\nOutput: {MEMORY_PATH}/design-direction.md\n\nRead {MIMIR_DIR}/agents/freya.md for the expected design-direction.md format."
 
+   [wait for completion]
+
+   SendMessage: teammate=bragi, type=shutdown_request
+   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-design
+   ```
    If Agent Teams unavailable: `Task(subagent_type=mimir:bragi, prompt="...")`
 
    If design direction already exists: proceed.
@@ -350,9 +390,12 @@ If feature involves UI (user mentions dashboard, component, page, frontend):
    TeamCreate: name=$PROJECT_SLUG-ux
    Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-ux, name=freya
    Prompt: "Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/ux-spec.md"
-   ```
-   Wait for completion. `TeamDelete: name=$PROJECT_SLUG-ux`
 
+   [wait for completion]
+
+   SendMessage: teammate=freya, type=shutdown_request
+   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-ux
+   ```
    If Agent Teams unavailable: `Task(subagent_type=mimir:freya, prompt="...")`
 
 3. Pass `UX spec: $STATE_DIR/ux-spec.md` in Frigg's prompt (Phase 3). Frigg produces concrete plan with files, steps, groups.
@@ -369,15 +412,14 @@ Spawn Heimdall as a team member:
 TeamCreate: name={SLUG}-validate
 Task: subagent_type=mimir:heimdall, team_name={SLUG}-validate, name=heimdall
 Prompt: "Spec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md"
+
+[wait for completion]
+
+SendMessage: teammate=heimdall, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-validate
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-validate`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:heimdall, prompt="Spec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:heimdall, prompt="Spec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")`
 
 If all criteria pass: proceed to Phase 6.
 
@@ -400,15 +442,14 @@ If "send fix": spawn Fix Thor as a team member. Describe the problem — do not 
 TeamCreate: name={SLUG}-fix
 Task: subagent_type=mimir:thor, team_name={SLUG}-fix, name=thor
 Prompt: "Fix validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\n\nFailed criteria: {criterion numbers and one-line descriptions, e.g., 'Criterion 4: shared package missing from api dependencies'}"
+
+[wait for completion]
+
+SendMessage: teammate=thor, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-fix
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-fix`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:thor, prompt="Fix validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\n\nFailed criteria: {criterion numbers and one-line descriptions}")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:thor, prompt="Fix validation failures on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\n\nFailed criteria: {criterion numbers and one-line descriptions}")`
 
 Re-validate — spawn Heimdall as a team member:
 
@@ -416,15 +457,14 @@ Re-validate — spawn Heimdall as a team member:
 TeamCreate: name={SLUG}-revalidate
 Task: subagent_type=mimir:heimdall, team_name={SLUG}-revalidate, name=heimdall
 Prompt: "Revalidation: true\nSpec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md"
+
+[wait for completion]
+
+SendMessage: teammate=heimdall, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-revalidate
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-revalidate`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:heimdall, prompt="Revalidation: true\nSpec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:heimdall, prompt="Revalidation: true\nSpec: $STATE_DIR/spec.md\nBranch: feat/{SLUG}\nOutput: $STATE_DIR/validation.md")`
 
 Increment fix_iterations in pipeline.yaml.
 
@@ -446,15 +486,14 @@ CHANGED_FILES=$(git diff --name-only $STARTING_BRANCH...feat/$SLUG | wc -l | tr 
 TeamCreate: name={SLUG}-review
 Task: subagent_type=mimir:forseti, team_name={SLUG}-review, name=forseti
 Prompt: "Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md"
+
+[wait for completion]
+
+SendMessage: teammate=forseti, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-review
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-review`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:forseti, prompt="Review type: branch\n...")`
 
 **>50 files** — scoped review. Group changed files by directory:
 
@@ -462,7 +501,7 @@ Task(subagent_type=mimir:forseti, prompt="Review type: branch\nBranch: feat/{SLU
 git diff --name-only $STARTING_BRANCH...feat/$SLUG | awk -F/ 'NF>=2{print $1"/"$2} NF<2{print $1}' | sort | uniq -c | sort -rn
 ```
 
-Spawn one Forseti per scope in a single team (parallel execution):
+Spawn one Forseti per scope in a single team (runs in parallel):
 
 ```
 TeamCreate: name={SLUG}-review
@@ -470,9 +509,13 @@ TeamCreate: name={SLUG}-review
 For each scope:
   Task: subagent_type=mimir:forseti, team_name={SLUG}-review, name=forseti-{scope-slug}
   Prompt: "Review type: scoped\nBranch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nScope: {scope}\nDiff command: git diff {STARTING_BRANCH}...feat/{SLUG} -- {scope}\nSpec: $STATE_DIR/spec.md\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review-{scope-slug}.md"
-```
 
-Wait for all to complete. Clean up: `TeamDelete: name={SLUG}-review`
+[wait for all to complete]
+
+For each scope:
+  SendMessage: teammate=forseti-{scope-slug}, type=shutdown_request
+Wait for all shutdown_responses. TeamDelete: name={SLUG}-review
+```
 
 If Agent Teams unavailable: spawn each Forseti sequentially as a raw subagent.
 
@@ -516,15 +559,14 @@ EOF
 TeamCreate: name={SLUG}-review-fix
 Task: subagent_type=mimir:thor, team_name={SLUG}-review-fix, name=thor
 Prompt: "Fix review findings on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nReview: $STATE_DIR/review.md\n\nFix these findings: {finding IDs and one-line descriptions, e.g., 'F1: session re-completion allows streak inflation, F3: missing JWT_SECRET validation'}"
+
+[wait for completion]
+
+SendMessage: teammate=thor, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-review-fix
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-review-fix`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:thor, prompt="Fix review findings on branch feat/{SLUG} in $(pwd).\nSpec: $STATE_DIR/spec.md\nReview: $STATE_DIR/review.md\n\nFix these findings: {finding IDs and one-line descriptions}")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:thor, prompt="Fix review findings on branch feat/{SLUG} in $(pwd).\n...")`
 
 2. Record the pre-fix commit, then spawn Forseti re-review as a team member — stateful and scoped to the fix diff:
 
@@ -536,15 +578,14 @@ PRE_FIX_COMMIT=$(git rev-parse HEAD~{number of Thor's fix commits})
 TeamCreate: name={SLUG}-rereview
 Task: subagent_type=mimir:forseti, team_name={SLUG}-rereview, name=forseti
 Prompt: "Review type: re-review\nBranch: feat/{SLUG}\nFix diff: git diff {PRE_FIX_COMMIT}...HEAD\nPrevious review: $STATE_DIR/review.md\nReview state: $STATE_DIR/review-state.yaml\nOutput: $STATE_DIR/review.md"
+
+[wait for completion]
+
+SendMessage: teammate=forseti, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-rereview
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-rereview`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:forseti, prompt="Review type: re-review\nBranch: feat/{SLUG}\nFix diff: git diff {PRE_FIX_COMMIT}...HEAD\nPrevious review: $STATE_DIR/review.md\nReview state: $STATE_DIR/review-state.yaml\nOutput: $STATE_DIR/review.md")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:forseti, prompt="Review type: re-review\n...")`
 
 3. If re-review finds new issues: present to user. Update review-state.yaml with new finding statuses.
 
@@ -562,15 +603,14 @@ Spawn Saga as a team member:
 TeamCreate: name={SLUG}-retro
 Task: subagent_type=mimir:saga, team_name={SLUG}-retro, name=saga
 Prompt: "Spec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\nReview: $STATE_DIR/review.md\nFix iterations: {fix_iterations}\nMemory path: {MEMORY_PATH}\nPipeline: $STATE_DIR/pipeline.yaml"
+
+[wait for completion]
+
+SendMessage: teammate=saga, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-retro
 ```
 
-Wait for completion. Clean up: `TeamDelete: name={SLUG}-retro`
-
-If Agent Teams unavailable:
-
-```
-Task(subagent_type=mimir:saga, prompt="Spec: $STATE_DIR/spec.md\nValidation: $STATE_DIR/validation.md\nReview: $STATE_DIR/review.md\nFix iterations: {fix_iterations}\nMemory path: {MEMORY_PATH}\nPipeline: $STATE_DIR/pipeline.yaml")
-```
+If Agent Teams unavailable: `Task(subagent_type=mimir:saga, prompt="Spec: $STATE_DIR/spec.md\n...")`
 
 ## Phase 8: Terminal
 
@@ -601,9 +641,12 @@ Spawn PR-Composer as a team member (haiku):
 TeamCreate: name={SLUG}-pr
 Task: subagent_type=mimir:pr-composer, team_name={SLUG}-pr, name=pr-composer
 Prompt: "Compose a PR title (<70 chars) and body with ## Summary and ## Test plan from: $(git log $STARTING_BRANCH..feat/$SLUG --oneline)"
-```
 
-Wait for completion. `TeamDelete: name={SLUG}-pr`
+[wait for completion]
+
+SendMessage: teammate=pr-composer, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-pr
+```
 
 If Agent Teams unavailable: `Task(subagent_type=general-purpose, prompt="Compose a PR title (<70 chars) and body...")`
 
@@ -648,9 +691,12 @@ When classified as Review (not post-implementation):
    TeamCreate: name=$PROJECT_SLUG-review
    Task: subagent_type=mimir:forseti, team_name=$PROJECT_SLUG-review, name=forseti
    Prompt: "Review type: branch\nBranch: {branch}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md"
-   ```
-   Wait for completion. `TeamDelete: name=$PROJECT_SLUG-review`
 
+   [wait for completion]
+
+   SendMessage: teammate=forseti, type=shutdown_request
+   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-review
+   ```
    If Agent Teams unavailable: `Task(subagent_type=mimir:forseti, prompt="...")`
 
 2. Read review.md. Present findings with confidence scores.
@@ -666,9 +712,12 @@ PR URL or "review PR #N":
    TeamCreate: name=$PROJECT_SLUG-pr-review
    Task: subagent_type=mimir:forseti, team_name=$PROJECT_SLUG-pr-review, name=forseti
    Prompt: "Review type: pr\n{PR metadata and diff}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md"
-   ```
-   Wait for completion. `TeamDelete: name=$PROJECT_SLUG-pr-review`
 
+   [wait for completion]
+
+   SendMessage: teammate=forseti, type=shutdown_request
+   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-pr-review
+   ```
    If Agent Teams unavailable: `Task(subagent_type=mimir:forseti, prompt="...")`
 
 3. Read review.md. Present findings.
@@ -687,29 +736,35 @@ PR URL or "review PR #N":
    ► Full audit (Recommended: haven't audited recently)
    ► Security focus
    ► Performance focus
-3. Create team, spawn Skadi teammates (parallel by dimension):
+3. Spawn Skadi teammates in a single team (parallel by dimension):
    ```
    TeamCreate: name=$PROJECT_SLUG-health
    For each dimension:
      Task: subagent_type=mimir:skadi, team_name=$PROJECT_SLUG-health, name=skadi-{dimension}
      Prompt: "Bug description: {health check context}\nHypothesis: {dimension focus}\nFindings output: $STATE_DIR/findings-{dimension}.md"
+
+   [wait for all to complete]
+
+   For each dimension:
+     SendMessage: teammate=skadi-{dimension}, type=shutdown_request
+   Wait for all shutdown_responses. TeamDelete: name=$PROJECT_SLUG-health
    ```
-   Wait for all to complete. `TeamDelete: name=$PROJECT_SLUG-health`
 4. Read findings files. Synthesize into summary report.
 
 ### Focused Review
 
 "Review security of X" or "check performance of Y":
 
-Spawn Forseti as a team member:
-
 ```
 TeamCreate: name=$PROJECT_SLUG-focused
 Task: subagent_type=mimir:forseti, team_name=$PROJECT_SLUG-focused, name=forseti
 Prompt: "Review type: focused\nTarget: {X}\nLens: {security|performance|...}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/review.md"
-```
 
-Wait for completion. `TeamDelete: name=$PROJECT_SLUG-focused`
+[wait for completion]
+
+SendMessage: teammate=forseti, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-focused
+```
 
 If Agent Teams unavailable: `Task(subagent_type=mimir:forseti, prompt="...")`
 
@@ -719,15 +774,7 @@ Spawn agents by name. The platform loads the agent file body as the system promp
 
 **Never read agent files or skill files before spawning.** `mimir:thor` is not shorthand for "general-purpose + thor.md contents" — it is a named agent the platform loads directly. Reading the file and using `general-purpose` bypasses skill injection and uses the wrong model configuration.
 
-**All agents use team member spawn syntax when Agent Teams are available:**
-
-```
-TeamCreate: name={team-name}
-Task: subagent_type=mimir:{agent}, team_name={team-name}, name={agent}
-Prompt: "..."
-[wait for completion]
-TeamDelete: name={team-name}
-```
+**All agents use the team lifecycle pattern when Agent Teams are available.** See Team Lifecycle Pattern at the top of this file.
 
 | Agent | Subagent Type | Model | Skills |
 |---|---|---|---|
