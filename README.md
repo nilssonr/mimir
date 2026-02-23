@@ -2,6 +2,36 @@
 
 A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, implements it, validates it, reviews it, and captures what it learned — then asks you what to do with the result.
 
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#6b7280'}}}%%
+flowchart LR
+    classDef odin   fill:#d4a017,stroke:#92620e,stroke-width:3px,color:#1a1100,font-weight:bold
+    classDef core   fill:#1e3a5f,stroke:#4a8fd4,stroke-width:2px,color:#dbeafe
+    classDef memory fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#dcfce7
+    classDef side   fill:#1f2937,stroke:#6b7280,stroke-width:1px,color:#d1d5db,stroke-dasharray:5 3
+
+    You([You]):::odin
+    O([Odin\norchestrator]):::odin
+    Hu([Huginn\nsurvey]):::side
+    Lo([Loki\nenhance]):::side
+    Sk([Skadi\nhunt]):::side
+    Br([Bragi · Freya\nUI design]):::side
+    Fr([Frigg\nplan]):::core
+    T([Thor\nimplement]):::core
+    He([Heimdall\nvalidate]):::core
+    Fo([Forseti\nreview]):::core
+    Sa([Saga\nmemory]):::memory
+
+    You --> O
+    O -.->|stale memory| Hu
+    O -.->|vague prompt| Lo
+    O -.->|bug| Sk
+    O -.->|UI feature| Br
+    O -->|feature · fix| Fr
+    Br -.-> Fr
+    Fr --> T --> He --> Fo --> Sa --> O
+```
+
 ---
 
 ## Table of Contents
