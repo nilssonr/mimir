@@ -28,9 +28,9 @@ if [ -z "$msg" ]; then
 fi
 
 # Validate conventional commit format
-if [[ ! "$msg" =~ ^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?\!?:\ .+ ]]; then
+if [[ ! "$msg" =~ ^(feat|fix|docs|style|refactor|perf|test|chore)(\(.+\))?\!?:\ .+ ]]; then
   echo "Commit message must follow conventional commits: type(scope): description" >&2
-  echo "Types: feat, fix, docs, style, refactor, test, chore" >&2
+  echo "Types: feat, fix, docs, style, refactor, perf, test, chore" >&2
   echo "Got: $msg" >&2
   exit 2
 fi
