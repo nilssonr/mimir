@@ -308,6 +308,60 @@ Production-grade UI guidelines: typography (avoid generic fonts), color (committ
 
 Project-specific design system conventions. Token categories (colors, typography, spacing, radii, shadows), component patterns, accessibility requirements. This skill is a template — customize it per project to encode your actual design tokens and component conventions.
 
+### shape
+**File**: `skills/shape/SKILL.md` | **User-invocable**: `/shape [rough idea]`
+
+The brainstorming entry point. Use when you don't know what you want to build yet, or when you have a direction but want to explore it before committing to a pipeline run. Unlike other skills — which are injected into agents — `/shape` is invoked by you directly and runs as Odin, orchestrating Huginn, Loki, and Bragi in sequence.
+
+Type `/shape` with no arguments to start from scratch. The Bragi research loop is repeatable — investigate multiple questions, revise the shaped prompt between them, and proceed when you're ready. The confirmed prompt hands off directly into Phase 1, bypassing the normal Phase 0 Loki check.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#94a3b8'}}}%%
+flowchart TD
+    classDef you      fill:#fde68a,stroke:#d97706,stroke-width:2px,color:#1c1917,font-weight:bold
+    classDef odin     fill:#fef3c7,stroke:#d97706,stroke-width:1px,color:#78350f
+    classDef huginn   fill:#d1fae5,stroke:#059669,stroke-width:1px,color:#064e3b
+    classDef loki     fill:#e0e7ff,stroke:#4338ca,stroke-width:1px,color:#312e81
+    classDef bragi    fill:#ffedd5,stroke:#ea580c,stroke-width:1px,color:#7c2d12
+    classDef pipeline fill:#f59e0b,stroke:#92400e,stroke-width:2px,color:#1c1917,font-weight:bold
+    classDef gate     fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+
+    U(["/shape idea"]):::you
+
+    U --> MC{"memory<br/>fresh?"}:::gate
+    MC -->|stale| HUG["Huginn<br/>orient project<br/>write memory files"]:::huginn
+    HUG --> GI
+    MC -->|fresh| GI
+
+    GI{"arguments?"}:::gate
+    GI -->|none| AQ1["ask: what are<br/>you thinking about?"]:::odin
+    AQ1 -->|you answer| LOK
+    GI -->|idea present| LOK
+
+    LOK["Loki<br/>shape prompt<br/>reads memory"]:::loki
+    LOK --> LR{"Loki<br/>returns?"}:::gate
+    LR -->|SUFFICIENT| RDYQ
+    LR -->|ENHANCED| AQ2["ask: use enhanced /<br/>original / adjust?"]:::odin
+    LR -->|CLARIFY| AQ3["present clarifying<br/>questions"]:::odin
+    AQ2 -->|use it| RDYQ
+    AQ2 -->|adjust| LOK
+    AQ3 -->|you answer| LOK
+
+    RDYQ{"shaped —<br/>what next?"}:::gate
+    RDYQ -->|adjust prompt| LOK
+    RDYQ -->|research this| AQ4
+
+    AQ4["ask: what to<br/>investigate?"]:::odin
+    AQ4 -->|you describe| BRA
+    BRA["Bragi<br/>research quick depth"]:::bragi
+    BRA --> BRF["present findings<br/>confidence · key finding · synthesis"]:::odin
+    BRF --> RDYQ
+
+    RDYQ -->|proceed| SHAPED
+    SHAPED(["shaped prompt<br/>in fenced block"]):::odin
+    SHAPED -->|skip Phase 0 — Loki ran| P1["Odin Phase 1+<br/>classify → orient → plan → build"]:::pipeline
+```
+
 ---
 
 ## Hooks
