@@ -16,7 +16,8 @@ Write tests FIRST, then implement to satisfy them conceptually. NEVER run tests.
 
 ## RED Phase
 
-- Read acceptance criteria from the spec
+- Read the `criteria` field for this spec step — each entry is a falsifiable assertion (`Given X, system must Y`). Write a test that will fail if the assertion is not satisfied. The criteria field tells you *what must be true*; you decide *how to prove it*.
+- If the spec step has no `criteria` field, derive assertions from the `detail` field.
 - Match existing test patterns (framework, style, naming, directory structure) from the project
 - Each test exercises NEW behavior that doesn't exist yet
 - Tests should be specific — one assertion per concept

@@ -31,7 +31,7 @@ You receive:
 
 ## Output
 
-Write to the output path provided (typically `~/.claude/state/mimir/spec.md`):
+Write to the output path (typically `~/.claude/state/mimir/spec.md`):
 
 ```markdown
 # {Feature Title}
@@ -53,6 +53,7 @@ Write to the output path provided (typically `~/.claude/state/mimir/spec.md`):
 - files: [{paths this step modifies}]
 - input: {what this step reads}
 - output: {what this step produces}
+- criteria: {One or more falsifiable assertions: "Given [precondition], [function/endpoint/component] must [observable outcome]." Written as what a test must prove — not what code to write. Example: "After PATCH /auth/me, authStore.getState().user must equal the patched values."}
 - detail: {2-3 sentences. Name function signatures, types, interfaces. Reference existing patterns with file:line. Do NOT write the implementation.}
 - tests: {what tests to write, referencing existing test patterns}
 
@@ -124,6 +125,7 @@ Plans must produce code that is:
 - Name concrete functions, types, and interfaces in detail. "Add a handler" is too vague. "Add handleCreateUser in server/routes/users.ts, following the pattern in handleCreateTicket (server/routes/tickets.ts:45)" is actionable.
 - Reference existing patterns from memory with file:line examples.
 - Tests field must name specific patterns: "Add table-driven test in __tests__/users.test.ts following __tests__/tickets.test.ts:12."
+- **The `criteria` field is not a code change.** It is a truth that must hold after the step is implemented. Write it as an observable assertion, not an instruction: "After PATCH /auth/me, authStore.getState().user must equal the patched values" — not "update the store in the PATCH handler." Thor writes tests that prove the criteria. A prescriptive instruction in the criteria field leads Thor to implement the instruction, not the intent.
 - **Mitigations become steps.** If you identify a risk and state a mitigation, convert the mitigation into a numbered spec step with a file and a test. A prose warning in the Risks section is invisible to Thor. The Risks section is for out-of-scope items and human-action items only — not for unimplemented work.
 - **Adapter and interceptor features require integration path tests.** If a feature intercepts or replaces an existing call path, the spec must include at least one test that exercises the real path from the existing caller to the new module. Tests that call the new module directly verify only the module in isolation; they cannot catch contract mismatches with the caller. At least one test must call the unmodified caller code and assert that the new module receives and handles the call correctly.
 

@@ -64,6 +64,7 @@ Prompt: "..."
 
 SendMessage: teammate={agent}, type=shutdown_request
 Wait for shutdown_response from {agent}.
+If no shutdown_response within one turn, resend shutdown_request once — agents busy on longer tasks receive the first request mid-transition to idle and need a second send to wake up.
 TeamDelete: name={team-name}
 ```
 
@@ -78,7 +79,7 @@ For each member:
 
 For each member:
   SendMessage: teammate={member-name}, type=shutdown_request
-Wait for all shutdown_responses.
+Wait for all shutdown_responses. Resend once per member if no response within one turn.
 TeamDelete: name={team-name}
 ```
 
@@ -168,7 +169,9 @@ CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null)
 
 Read .huginn-state. If `commit:` doesn't match CURRENT_HEAD, memory is stale.
 
-If stale or missing: spawn Huginn as a team member:
+**If `pipeline.yaml` exists and `stage` is not `classify`, `orient`, or `complete`: skip orientation entirely.** Memory is current for the task already in flight — Huginn ran before execution started, and re-walking the codebase mid-pipeline wastes tokens without improving the plan.
+
+If stale or missing (and not mid-pipeline): spawn Huginn as a team member:
 
 ```
 TeamCreate: name=$PROJECT_SLUG-orient
@@ -527,7 +530,7 @@ cat $STATE_DIR/review-*.md > $STATE_DIR/review.md
 
 ### Triage
 
-Read review.md. Present findings:
+Read review.md. Present findings grouped by severity, including confidence scores:
 
 | Findings | Recommendation |
 |---|---|
@@ -535,7 +538,7 @@ Read review.md. Present findings:
 | Minor only | Proceed |
 | Security-related (any severity) | Fix them |
 
-Format: "Review found [N] findings: [breakdown]. [Most important]. I recommend [action] because [signal]."
+Format: "Review found [N] findings ([X] critical, [Y] major, [Z] minor). Confidence range: [lowest]–[highest]%. Most important: [finding title] ([confidence]%). I recommend [action] because [signal]."
 
 After user decides which findings to fix vs accept, write review state:
 
