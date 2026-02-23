@@ -67,18 +67,33 @@ Without this flag, parallel dispatch is unavailable. Odin will warn you at sessi
 
 ### From GitHub
 
-```bash
-claude plugin install github:nilssonr/mimir
+In Claude Code, run these two slash commands:
+
 ```
+/plugin marketplace add nilssonr/mimir
+/plugin install mimir@mimir
+```
+
+The first command registers the Mimir marketplace from GitHub. The second installs the plugin. After installation, `settings.json` sets Odin as your session agent automatically — no additional configuration required.
 
 ### From local clone
 
+Clone the repository, then in Claude Code:
+
 ```bash
 git clone https://github.com/nilssonr/mimir.git
-claude plugin install ./mimir
 ```
 
-Mimir's `settings.json` sets Odin as the session agent automatically when the plugin is active. No additional configuration required.
+```
+/plugin marketplace add ./mimir
+/plugin install mimir@mimir
+```
+
+### Keeping Mimir up to date
+
+```
+/plugin marketplace update mimir
+```
 
 ---
 
