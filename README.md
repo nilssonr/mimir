@@ -206,7 +206,7 @@ At the end of a pipeline, Odin presents:
 
 ## Agents
 
-All agents live in `agents/`. Odin reads agent files at dispatch time and composes Task prompts by combining agent instructions with relevant skills and task context.
+All agents live in `agents/`. Each agent file declares its model, tools, and skills in frontmatter. When Odin spawns an agent by name (`subagent_type=mimir:thor`), the platform loads the agent's instructions as the system prompt and injects the declared skills automatically.
 
 ### Odin
 **File**: `agents/odin.md` | **Model**: Sonnet | **Entry point**: yes
@@ -246,7 +246,7 @@ The keeper of memory. Runs after validation and review. Reads the spec, validati
 ### Huginn
 **File**: `agents/huginn.md` | **Model**: Haiku
 
-Odin's raven of thought. Surveys a new or unfamiliar project and writes structured knowledge to project memory. Spawned when memory is missing or stale (detected by comparing `.orienter-state` commit hash against `HEAD`). First creates a stack-appropriate `.gitignore` if one is missing — preventing Glob patterns from traversing `node_modules/` and build artifacts on every subsequent agent run. Then writes five memory files and records the git state for freshness tracking.
+Odin's raven of thought. Surveys a new or unfamiliar project and writes structured knowledge to project memory. Spawned when memory is missing or stale (detected by comparing `.huginn-state` commit hash against `HEAD`). First creates a stack-appropriate `.gitignore` if one is missing — preventing Glob patterns from traversing `node_modules/` and build artifacts on every subsequent agent run. Then writes five memory files and records the git state for freshness tracking.
 
 ### Loki
 **File**: `agents/loki.md` | **Model**: Haiku
@@ -277,7 +277,7 @@ The advisor. Used for working on Mimir itself — not on your projects. Reads an
 
 ## Skills
 
-Skills are reusable instruction sets. Odin reads the relevant skill files and injects their content into agent Task prompts at dispatch time. They are not loaded via frontmatter — they're composed manually into the prompt.
+Skills are reusable instruction sets declared in each agent's frontmatter. When Odin spawns an agent by name, the platform injects the declared skills into the agent's context automatically — Odin does not read or compose skill files manually.
 
 ### tdd
 **File**: `skills/tdd/SKILL.md` | **Used by**: Thor, Volundr
@@ -360,7 +360,7 @@ The project slug is the absolute project path with `/` replaced by `-` (e.g., `/
 
 #### How it's written
 
-Huginn writes project memory on the first run, and whenever memory is stale (the commit hash in `.orienter-state` doesn't match `HEAD`).
+Huginn writes project memory on the first run, and whenever memory is stale (the commit hash in `.huginn-state` doesn't match `HEAD`).
 
 | File | Contents |
 |---|---|
@@ -369,7 +369,7 @@ Huginn writes project memory on the first run, and whenever memory is stale (the
 | `conventions.md` | Error handling patterns, test patterns, naming conventions, DI approach, code style beyond linters |
 | `architecture.md` | Key abstractions, data flow, API patterns, auth model, state management, database access |
 | `domain.md` | Business entities, API surface, domain-specific terminology |
-| `.orienter-state` | Git commit hash, branch, dirty flag, timestamp — used to detect staleness |
+| `.huginn-state` | Git commit hash, branch, dirty flag, timestamp — used to detect staleness |
 
 Every claim in memory files must reference a specific file. Huginn never speculates.
 
