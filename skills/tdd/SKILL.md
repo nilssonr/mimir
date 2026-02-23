@@ -23,6 +23,8 @@ Write tests FIRST, then implement to satisfy them conceptually. NEVER run tests.
 - Name tests descriptively: what behavior, under what conditions, expected outcome
 - Do NOT run the tests
 
+**Test mock isolation**: Many test frameworks hoist or lazily initialize mock setup before module imports are evaluated. Variables declared at module scope may not be accessible inside mock factory functions at the point the framework applies them. Prefer self-contained mock factories that do not rely on outer-scope variables. If your project's framework requires mocks to be registered before the module under test is required, follow that convention — look at existing test files in the project to understand the expected pattern.
+
 ## GREEN Phase
 
 - Read the tests to understand expectations

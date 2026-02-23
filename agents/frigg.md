@@ -47,6 +47,7 @@ Write to the output path provided (typically `~/.claude/state/mimir/spec.md`):
 
 ### Step 1: {imperative verb} {what}
 - complexity: low | medium | high
+- security: high  ← add only for steps that modify authorization state or integrate with external auth/payment services
 - depends_on: []
 - files: [{paths this step modifies}]
 - input: {what this step reads}
@@ -81,6 +82,8 @@ Merge strategy: clean merge expected | manual resolution needed for [files]
 - If you cannot guarantee non-overlapping files → single group → one implementer → no merge needed
 - Each group's file list must be complete. Odin uses these for worktree dispatch.
 
+**Client-server paired constraints**: If Group X implements a client-side gate (a limit, quota, or access check enforced in the UI or client code), AND that gate requires a server-side counterpart (a database constraint, policy, or service-level guard) to be meaningful, both sides must either be in the same group OR listed in Shared files with an explicit note: "Group X's [client gate] requires Group Y's [server enforcement] — both must land before validation." Do not split paired client-server constraints across groups without making the dependency explicit.
+
 ## Complexity Annotation
 
 Each step gets a complexity rating:
@@ -90,6 +93,18 @@ Each step gets a complexity rating:
 | low | Single function, clear pattern exists, <20 lines |
 | medium | Multiple functions, some design decisions, 20-100 lines |
 | high | New module, significant design, >100 lines, or unfamiliar territory |
+
+## Security Annotation
+
+Add `security: high` to any step that:
+- Integrates with an external service that distinguishes between production and test/sandbox environments
+- Updates authorization state (access level, roles, entitlements, subscription status)
+- Validates proof-of-authorization from an external provider
+
+For each `security: high` step, include in Risks:
+
+- **Environment isolation**: Verify that test/sandbox paths in the external service cannot be triggered by production traffic. A fallback from a production endpoint to a test endpoint is a security vulnerability, not a resilience feature. The step detail must specify which environment is targeted and how test-mode responses are excluded from production code paths.
+- **Error handling on authorization writes**: Any write that updates authorization state must check its error return before signaling success to the caller. A silent failure that causes the caller to consider the operation complete — while the state was not actually updated — is a correctness and integrity bug.
 
 ## Engineering Values
 

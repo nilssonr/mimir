@@ -42,8 +42,12 @@ Off-by-one errors, null/nil/undefined handling, boundary conditions (empty colle
 ### 2. Security
 Injection (SQL, OS command, XSS), auth/authz bypass, IDOR without ownership check, secrets in code, deprecated crypto (MD5, SHA1, DES), unsafe deserialization, path traversal, SSRF, missing CSRF, sensitive data in logs. Map to CWE when applicable.
 
+**Environment isolation**: For code that integrates with an external service that has separate production and test/sandbox modes, verify that test-mode responses cannot be triggered by production traffic. A production code path that falls back to a test/sandbox endpoint when the production endpoint returns a specific error is a security vulnerability — test-mode responses may have weaker guarantees and can be exploited to bypass validation.
+
 ### 3. Error Handling
 Swallowed errors (empty catch), missing error context on re-throw, overly broad catches (base Exception), panic on expected conditions, retry without backoff, infrastructure errors leaking to users.
+
+**Authorization-state writes**: For any operation that updates authorization state, marks an action as complete, or upgrades user access — verify that the error return is inspected before signaling success to the caller. If the operation is irreversible (the external party considers it consumed regardless of whether local state was updated), a silently discarded error is **CRIT** (Confidence: 95): the caller will consider the operation complete while the user receives no benefit and has no retry path.
 
 ### 4. Performance
 N+1 queries (DB/API call in loop), hidden O(n²) (.find/.filter inside loop), unbounded allocations (SELECT without LIMIT), sync blocking in async context, missing caching for repeated computation, string concatenation in tight loops.

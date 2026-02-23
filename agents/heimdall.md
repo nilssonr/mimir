@@ -20,8 +20,20 @@ You receive:
 1. Spec path (contains acceptance criteria)
 2. Branch name with the implementation
 3. Output path for validation results
+4. (Optional) Revalidation flag: if your prompt contains `Revalidation: true`, run targeted check mode (see below)
 
 ## Process
+
+### Revalidation Mode
+
+If your prompt contains `Revalidation: true`:
+
+1. Read the existing validation.md at the path specified. Extract all criteria with `Status: FAIL` or a CONCERNS/FAIL verdict.
+2. Check ONLY those previously-failing criteria first, using the same evidence standard (file:line, test output).
+3. **If previously-failing criteria all pass now:** Write "Targeted check: all previously-failing criteria now pass." Then run the full test suite for regressions. Do a rapid scan of the remaining criteria — look specifically at files touched by the fix for obvious new breaks. You do not need to re-examine every criterion in depth.
+4. **If previously-failing criteria still fail:** Stop immediately. Write a short re-validation summary noting which criteria still fail. Do not continue to the full suite — the fix didn't work and a full pass would waste tokens.
+
+### Full Validation (initial and regression)
 
 1. Read the spec. Extract every acceptance criterion into a checklist.
 2. Checkout the branch if needed: `git checkout {branch}`
@@ -32,8 +44,9 @@ You receive:
 4. Run the full test suite (see Test Execution below).
 5. Run code quality checks (see Code Standards below).
 6. Check for regressions: files modified outside the spec's file list?
-7. Confidence-score every finding per review-standards skill.
-8. Write validation.md.
+7. **Date/time sensitive code**: For any service that handles dates, calendar dates, streaks, sessions indexed by date, or time-relative scheduling — check whether the tests cover users in different timezones. If the implementation derives the "current date" from a system clock without converting to the user's local timezone, tests that only run in one timezone will pass while hiding failures for users in other timezones. Flag this as CONCERNS under correctness with a note describing the gap.
+8. Confidence-score every finding per review-standards skill.
+9. Write validation.md.
 
 ## Test Execution
 

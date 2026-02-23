@@ -194,7 +194,23 @@ Read `$MIMIR_DIR/agents/thor.md` and skills `$MIMIR_DIR/skills/tdd/SKILL.md`, `$
 
 Compose prompt: agent instructions + skill content + spec content + "Work on branch feat/$SLUG in $(pwd)."
 
-Spawn Thor as sonnet subagent (subagent_type: general-purpose).
+**Dispatch method depends on step count:**
+
+If total spec steps ≤ 6 OR Agent Teams unavailable (`$CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` unset):
+  Spawn Thor as sonnet subagent (subagent_type: general-purpose).
+
+If total spec steps > 6 AND Agent Teams available:
+  Use a single-member team to keep Thor's output out of conductor context (context isolation, not parallelization):
+  ```
+  TeamCreate: name=$SLUG-impl
+  Task: subagent_type=general-purpose, model=sonnet, team_name=$SLUG-impl, name=thor
+  Prompt: {composed prompt above}
+  ```
+  Wait for completion. Clean up:
+  ```
+  TeamDelete: name=$SLUG-impl
+  ```
+  This prevents Thor's implementation output (file reads, writes, git commands) from streaming through the conductor's context window and causing compaction during long runs.
 
 ### Parallel Implementers
 
@@ -279,7 +295,7 @@ Format: "Validation failed: [criterion]. [Root cause]. I recommend [action] beca
 
 If "send fix": spawn Fix Thor (sonnet subagent) with specific failure details from validation.md + spec reference + branch.
 
-Re-validate after fix. Increment fix_iterations in pipeline.yaml.
+Re-validate after fix: spawn Heimdall with `Revalidation: true. Previous validation results are at ~/.claude/state/mimir/validation.md — run targeted check (failing criteria first, then regression scan).` in the prompt. Increment fix_iterations in pipeline.yaml.
 
 ## Phase 6: Review
 
@@ -299,7 +315,27 @@ Present findings:
 
 Format: "Review found [N] findings: [breakdown]. [Most important]. I recommend [action] because [signal]."
 
-If fix needed: spawn Thor with review findings, re-review (max 1 iteration).
+### Fix and Re-review (max 2 iterations)
+
+If fix needed:
+
+1. Spawn Fix Thor (sonnet subagent) with all findings from review.md + branch name + instruction: "Fix only the listed findings. After applying each fix, verify that adjacent behavior in the same function and file is unchanged. Do not introduce new dependencies or change code outside the specific finding's scope."
+
+2. After Thor commits, run a focused Forseti on only the fix diff — not the full branch:
+   ```bash
+   # Count commits introduced by the fix (typically 1)
+   FIX_COMMITS=$(git log --oneline feat/$SLUG...{commit-before-fix} | wc -l)
+   git diff HEAD~${FIX_COMMITS} HEAD  # diff of the fix work only
+   ```
+   Spawn Forseti (sonnet subagent) with this fix-only diff + instruction: "Review ONLY the changes in this diff. Flag any new issues introduced by these specific changes. Do not report on pre-existing code outside this diff."
+   Output: `~/.claude/state/mimir/review-fixcheck.md`
+
+3. If focused review finds new issues in the fix: present them to the user before proceeding to full re-review.
+   Format: "Fix introduced [N] new issues: [summary]. I recommend fixing these before the full re-review because [signal]."
+
+4. Spawn full Forseti re-review (full branch diff vs $STARTING_BRANCH). Increment review_iterations in pipeline.yaml.
+
+If iteration count = 2 and findings remain: escalate to user. Present findings and ask whether to fix (exceeds limit), accept, or discuss.
 
 ## Phase 7: Retro
 
@@ -462,7 +498,7 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 4. **If no clear signal, present options equally.** "No strong signal either way."
 5. **Keep recommendations to one sentence.** The parenthetical after the option label is sufficient.
 6. **The user always sees all options.** Recommendation is the default, not the only choice.
-7. **Max iterations.** 2 fix loops for validation, 1 for review. Then escalate.
+7. **Max iterations.** 2 fix loops for validation, 2 for review. Then escalate.
 8. **Clean up.** Remove worktrees and temporary branches at terminal.
 9. **One pipeline at a time.** Complete or discard before starting another.
 10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
