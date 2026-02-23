@@ -22,7 +22,7 @@ A Claude Code plugin that orchestrates software engineering work through a pipel
 
 ## How it works
 
-When you open a project with Mimir installed, **Odin** starts as your session agent. He classifies your intent, recommends an approach, and dispatches specialized agents to do the work. He never writes code himself.
+You start a session with Odin as your session agent. He classifies your intent, recommends an approach, and dispatches specialized agents to do the work. He never writes code himself.
 
 A typical feature pipeline:
 
@@ -74,7 +74,7 @@ In Claude Code, run these two slash commands:
 /plugin install mimir@mimir
 ```
 
-The first command registers the Mimir marketplace from GitHub. The second installs the plugin. After installation, `settings.json` sets Odin as your session agent automatically — no additional configuration required.
+The first command registers the Mimir marketplace from GitHub. The second installs the plugin.
 
 ### From local clone
 
@@ -101,12 +101,19 @@ git clone https://github.com/nilssonr/mimir.git
 
 ### Starting a session
 
-Open any project directory with Claude Code. Odin starts automatically.
+Start Odin explicitly by passing `--agent mimir:odin` when launching Claude Code:
 
 ```bash
-cd your-project
-claude
+claude --agent mimir:odin
 ```
+
+For convenience, add an alias to your shell config:
+
+```bash
+alias odin='claude --agent mimir:odin'
+```
+
+Then just run `odin` from any project directory.
 
 ### Describing work
 
