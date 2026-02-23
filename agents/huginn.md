@@ -109,7 +109,7 @@ Business entities and their relationships. API surface (endpoints, operations). 
 
 ## Orienter State
 
-After writing all memory files, record the git state for freshness tracking. Write to `~/.claude/projects/{project}/memory/.orienter-state`:
+After writing all memory files, record the git state for freshness tracking. Write to `~/.claude/projects/{project}/memory/.huginn-state`:
 
 ```
 commit: <output of git rev-parse HEAD>

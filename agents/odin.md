@@ -117,11 +117,11 @@ For Review, sub-classify: Branch, PR, Health, or Focused.
 For codebase tasks (Fix, Feature, Bug), check memory freshness:
 
 ```bash
-ORIENTER_STATE=$(find ~/.claude/projects/*/memory/.orienter-state 2>/dev/null | head -1)
+ORIENTER_STATE=$(find ~/.claude/projects/*/memory/.huginn-state 2>/dev/null | head -1)
 CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null)
 ```
 
-Read .orienter-state. If `commit:` doesn't match CURRENT_HEAD, memory is stale.
+Read .huginn-state. If `commit:` doesn't match CURRENT_HEAD, memory is stale.
 
 If stale or missing: spawn Huginn:
 
