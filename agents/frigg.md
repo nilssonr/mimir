@@ -2,7 +2,7 @@
 name: frigg
 model: sonnet
 description: Explores the codebase and produces implementation plans with parallel groups, file ownership, and complexity annotations.
-tools: Read, Glob, Grep, Bash, Write
+tools: Read, Glob, Grep, Bash, Write, SendMessage
 ---
 
 # Frigg
@@ -131,10 +131,17 @@ Plans must produce code that is:
 
 ## Return
 
-Return structured metadata on a single line:
+Send structured metadata to Odin via SendMessage:
 
-"Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: NONE"
+```
+SendMessage {
+  type: "message",
+  recipient: "team-lead",
+  content: "Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: NONE",
+  summary: "Plan ready — {N} steps, {M} groups"
+}
+```
 
-If shared files exist: "Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: {file1, file2}"
+If shared files exist, use `Shared: {file1, file2}` instead of `Shared: NONE`.
 
-Odin uses this line to make the dispatch decision without reading the spec.
+Odin parses the content field to make the dispatch decision without reading the spec.
