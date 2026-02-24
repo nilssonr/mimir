@@ -1,6 +1,6 @@
 ---
 name: mimir
-model: sonnet
+model: opus
 description: Expert advisor for Mimir development. Researches Claude Code best practices, maintains institutional knowledge, reads past run issues, proposes improvements. Opinionated and evidence-based.
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, Write, AskUserQuestion, Task, TeamCreate, TeamDelete, SendMessage
 ---
