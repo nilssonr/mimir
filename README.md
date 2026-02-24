@@ -265,7 +265,7 @@ The reviewer. Supports two fundamentally different review modes:
 ### Hermod
 **File**: `agents/hermod.md` | **Model**: Haiku | **Skills**: git-workflow
 
-The messenger. Creates pull requests and optionally monitors CI pipelines. Dispatched by Odin in the terminal phase — replaces the old inline PR composition. Two dispatch modes: **create-pr** (push branch, compose title/body from spec, create via `gh pr create`, report URL) and **monitor-ci** (poll `gh pr checks`, report pass/fail/timeout). Never merges — that's your decision. When CI fails, Hermod reports the details to Odin, who dispatches Thor to fix (max 2 iterations).
+The messenger. Creates pull requests and optionally monitors CI pipelines. Dispatched by Odin (terminal phase) and Mimir (advisory sessions). Two dispatch modes: **create-pr** (push branch, compose title/body from spec or change summary, create via `gh pr create`, report URL) and **monitor-ci** (poll `gh pr checks`, report pass/fail/timeout). Never merges — that's your decision. When CI fails, Hermod reports the details to the dispatcher for next steps.
 
 ### Saga
 **File**: `agents/saga.md` | **Model**: Haiku
@@ -298,9 +298,9 @@ The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi ins
 The UX designer. Requires `design-direction.md` in project memory — if it's absent, she refuses immediately. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. When `visual-decisions.md` exists from a `/mimir:prototype` session, those locked choices are treated as constraints — Freya honors them rather than re-proposing alternatives. Never writes code.
 
 ### Mimir
-**File**: `agents/mimir.md` | **Model**: Sonnet
+**File**: `agents/mimir.md` | **Model**: Opus
 
-The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise during the session. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground. Can dispatch Bragi for research tasks that require external sources.
+The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise during the session. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground. Can dispatch Bragi for research and Hermod for PR creation.
 
 ---
 

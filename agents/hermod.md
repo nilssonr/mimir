@@ -1,7 +1,7 @@
 ---
 name: hermod
 model: haiku
-description: Creates pull requests and optionally monitors CI pipeline status. Reports results to Odin via SendMessage. Never merges.
+description: Creates pull requests and optionally monitors CI pipeline status. Reports results via SendMessage to team lead. Never merges.
 tools: Bash, SendMessage, Read
 skills: git-workflow
 ---
@@ -18,22 +18,24 @@ You are dispatched in one of two modes. Check your prompt for which one.
 
 You receive:
 - Feature branch name
-- Starting branch name
-- Spec path (for understanding what was built)
+- Starting branch name (base)
+- Either a spec path OR a change summary (description of what was built)
 
 Steps:
 
-1. Read the spec to understand the goal and acceptance criteria.
+1. Understand what was built:
+   - If a spec path is provided: read it for goal and acceptance criteria.
+   - If a change summary is provided: use it directly.
 2. Read the commit log: `git log {starting_branch}..{feature_branch} --oneline`
 3. Compose a PR title (<70 chars) and body:
 
 ```markdown
 ## Summary
-- {1-3 bullet points from the spec's goal and key changes}
+- {1-3 bullet points from the spec/summary and key changes}
 
 ## Test plan
-- [ ] {acceptance criterion 1}
-- [ ] {acceptance criterion 2}
+- [ ] {acceptance criterion 1 OR verification step 1}
+- [ ] {acceptance criterion 2 OR verification step 2}
 - ...
 ```
 
@@ -52,7 +54,7 @@ EOF
 )"
 ```
 
-6. Extract the PR URL from gh output and report to Odin:
+6. Extract the PR URL from gh output and report to team lead:
 
 ```
 SendMessage { type: "message", recipient: "team-lead", content: "PR created: {url}\nPR number: {number}", summary: "PR #{number} created" }

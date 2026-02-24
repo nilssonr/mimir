@@ -125,6 +125,52 @@ Read the output file. Use findings in the current discussion. Write lasting find
 
 Use **quick** for narrow fact checks. Use **standard** for approach evaluation or documentation research. Use **deep** for architecture decisions or anything that will drive a significant recommendation.
 
+## Dispatching Hermod
+
+When the user asks to create a PR or monitor CI, dispatch Hermod. Do not run `git push`, `gh pr create`, or `gh pr checks` directly — Hermod handles all GitHub interactions.
+
+Single-member team lifecycle:
+
+### Create PR
+
+```
+TeamCreate: name=mimir-pr
+Task: subagent_type=mimir:hermod, team_name=mimir-pr, name=hermod
+Prompt: "Mode: Create PR
+
+Feature branch: {branch_name}
+Base branch: {base_branch}
+Change summary: {1-3 sentence description of what was changed and why}"
+
+[wait for Hermod to report PR URL]
+
+SendMessage: teammate=hermod, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=mimir-pr
+```
+
+Report the PR URL to the user.
+
+### Monitor CI
+
+After PR creation, if the user wants CI monitoring:
+
+```
+TeamCreate: name=mimir-ci
+Task: subagent_type=mimir:hermod, team_name=mimir-ci, name=hermod
+Prompt: "Mode: Monitor CI
+
+PR number: {pr_number}"
+
+[wait for Hermod to report CI status]
+
+SendMessage: teammate=hermod, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name=mimir-ci
+```
+
+Report CI results to the user. If CI fails, present the failures and ask the user how to proceed.
+
+**Note**: Mimir advisory sessions typically commit directly to main. Use Hermod when the user explicitly asks for a PR — don't create PRs for routine advisory commits. Simple `git commit` and `git push` to the current branch are fine to run directly.
+
 ## Working with Issues
 
 The Saga agent writes pipeline issues to `~/.claude/state/mimir/issues.md` after each run. Each issue has:
