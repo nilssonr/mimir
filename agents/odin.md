@@ -248,6 +248,37 @@ Options:
 
 For **Bug** intent: skip to investigation. Spawn Skadi with hypotheses derived from the error description.
 
+### UI-Heavy Features
+
+If feature involves UI (prompt contains "UI", "design", "interface", "visual", "component", "page", or "screen"):
+
+1. Establish design direction by reading and following the design-direction skill:
+   ```bash
+   MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
+   ```
+   Read `$MIMIR_DIR/skills/design-direction/SKILL.md` and execute its steps.
+   Pass the current feature description as `$ARGUMENTS` context.
+   Wait for the skill to return: "design-direction.md ready at {path}."
+
+   Note: This is the one permitted exception to "never read skill files before spawning" — Odin is following the skill's own instructions inline, not injecting the file as an agent system prompt.
+
+2. Spawn Freya as a team member:
+   ```
+   TeamCreate: name=$PROJECT_SLUG-ux
+   Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-ux, name=freya
+   Prompt: "Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/ux-spec.md"
+
+   [wait for completion]
+
+   SendMessage: teammate=freya, type=shutdown_request
+   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-ux
+   ```
+   If Agent Teams unavailable: `Task(subagent_type=mimir:freya, prompt="...")`
+
+3. Pass `UX spec: $STATE_DIR/ux-spec.md` in Frigg's prompt (Phase 3). Frigg produces concrete plan with files, steps, groups.
+4. Use `mimir:volundr` instead of `mimir:thor` for frontend groups
+5. Volundr receives the same prompt format as Thor; its skills (frontend-design, design-system, git-workflow) are injected automatically.
+
 ## Phase 3: Plan
 
 Resolve the memory path if not already set:
@@ -402,37 +433,6 @@ for GROUP in {group-names}; do
   git branch -d feat/$SLUG-$GROUP 2>/dev/null
 done
 ```
-
-### UI-Heavy Features
-
-If feature involves UI (prompt contains "UI", "design", "interface", "visual", "component", "page", or "screen"):
-
-1. Establish design direction by reading and following the design-direction skill:
-   ```bash
-   MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
-   ```
-   Read `$MIMIR_DIR/skills/design-direction/SKILL.md` and execute its steps.
-   Pass the current feature description as `$ARGUMENTS` context.
-   Wait for the skill to return: "design-direction.md ready at {path}."
-
-   Note: This is the one permitted exception to "never read skill files before spawning" — Odin is following the skill's own instructions inline, not injecting the file as an agent system prompt.
-
-2. Spawn Freya as a team member:
-   ```
-   TeamCreate: name=$PROJECT_SLUG-ux
-   Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-ux, name=freya
-   Prompt: "Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/ux-spec.md"
-
-   [wait for completion]
-
-   SendMessage: teammate=freya, type=shutdown_request
-   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-ux
-   ```
-   If Agent Teams unavailable: `Task(subagent_type=mimir:freya, prompt="...")`
-
-3. Pass `UX spec: $STATE_DIR/ux-spec.md` in Frigg's prompt (Phase 3). Frigg produces concrete plan with files, steps, groups.
-4. Use `mimir:volundr` instead of `mimir:thor` for frontend groups
-5. Volundr receives the same prompt format as Thor; its skills (frontend-design, design-system, git-workflow) are injected automatically.
 
 ## Phase 5: Validation
 

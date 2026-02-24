@@ -1,4 +1,4 @@
-# Mimir
+# Mimir · v2.6.0
 
 A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, implements it, validates it, reviews it, and captures what it learned — then asks you what to do with the result.
 
