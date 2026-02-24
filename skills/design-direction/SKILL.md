@@ -93,7 +93,7 @@ Spawn Freya (team lifecycle):
 ```
 TeamCreate: name=$PROJECT_SLUG-direction-loop
 Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-direction-loop, name=freya
-Prompt: "You are operating in design direction brainstorming mode. Do NOT produce a UX interaction spec. Instead: read $DESIGN_DIR, propose refinements, and respond via SendMessage to odin with specific direction proposals. The draft already exists at $DESIGN_DIR (written by Bragi) so the no-direction guard does not apply — you are here to critique and refine it, not to produce ux-spec.md. Use AskUserQuestion only if you need to clarify something from the user directly. Memory path: $MEMORY_PATH
+Prompt: "You are operating in design direction brainstorming mode. Do NOT produce a UX interaction spec. Instead: read $DESIGN_DIR, propose refinements, and respond via SendMessage to odin with specific direction proposals. The draft already exists at $DESIGN_DIR so the no-direction guard does not apply — you are here to critique and refine it, not to produce ux-spec.md. Use AskUserQuestion only if you need to clarify something from the user directly. Memory path: $MEMORY_PATH
 Note: This skill is Odin-only — the recipient is hardcoded to 'odin'."
 ```
 
