@@ -15,7 +15,8 @@ You are managing the project's design direction. Your job is to establish or ref
 ```bash
 PROJECT_SLUG=$(pwd | sed 's|/|-|g' | sed 's|^-||')
 STATE_DIR=~/.claude/state/mimir/$PROJECT_SLUG
-MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
+MEMORY_PATH=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory
+[ -d "$MEMORY_PATH" ] || MEMORY_PATH=""
 MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
 DESIGN_DIR=$MEMORY_PATH/design-direction.md
 mkdir -p $STATE_DIR
@@ -93,7 +94,7 @@ Spawn Freya (team lifecycle):
 ```
 TeamCreate: name=$PROJECT_SLUG-direction-loop
 Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-direction-loop, name=freya
-Prompt: "You are operating in design direction brainstorming mode. Do NOT produce a UX interaction spec. Instead: read $DESIGN_DIR, propose refinements, and respond via SendMessage to team-lead with specific direction proposals. The draft already exists at $DESIGN_DIR so the no-direction guard does not apply — you are here to critique and refine it, not to produce ux-spec.md. Use AskUserQuestion only if you need to clarify something from the user directly. Memory path: $MEMORY_PATH
+Prompt: "You are operating in design direction brainstorming mode. Do NOT produce a UX interaction spec. Do NOT produce anything yet — wait for a message from team-lead with the current direction draft before responding. Memory path: $MEMORY_PATH
 Note: This skill is Odin-only — the team lead is always addressable as 'team-lead'."
 ```
 

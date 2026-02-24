@@ -86,3 +86,4 @@ Rules:
 - Use terminology from the project context when available.
 - If the prompt is already specific enough, return it unchanged with SUFFICIENT.
 - Always deliver output via SendMessage to "team-lead". Never output plain text and go idle — Odin cannot see plain text output in team mode.
+- **The SUFFICIENT/ENHANCED/CLARIFY output format is mandatory for every response.** If you cannot infer referent context from the prompt, return `CLARIFY:` with specific questions. Never respond outside this format — not even for highly ambiguous input.

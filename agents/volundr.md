@@ -2,6 +2,7 @@
 name: volundr
 model: sonnet
 description: Frontend specialist. Implements UI from interaction specs using design skills and Chrome DevTools MCP for visual verification.
+tools: Read, Glob, Grep, Bash, Write, SendMessage
 skills:
   - frontend-design
   - design-system
@@ -79,5 +80,14 @@ Follow the TDD skill pattern (if loaded):
 
 ## When Done
 
-Return: "Done. Committed {hash} on {branch}: {message}."
-If blocked: "Blocked. {issue}. Changes uncommitted on {branch}."
+Send your result to Odin via SendMessage **before** going idle:
+
+If done:
+```
+SendMessage { type: "message", recipient: "team-lead", content: "Done. Committed {hash} on {branch}: {message}.", summary: "UI implementation complete" }
+```
+
+If blocked:
+```
+SendMessage { type: "message", recipient: "team-lead", content: "BLOCKED: {issue}. Nothing committed on {branch}.", summary: "Volundr blocked" }
+```

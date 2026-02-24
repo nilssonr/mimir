@@ -27,7 +27,8 @@ You receive:
 6. Decompose into implementation steps
 7. Assign file ownership per step
 8. Group steps for parallelization
-9. Write the spec file
+9. **Cross-check for internal consistency.** For each step, verify that the `criteria` field and the `detail` field are mutually consistent: the criteria asserts an observable outcome, the detail describes how to achieve it — these must not contradict. If criteria says X must be true and detail says "implement Y", verify Y produces X. If they contradict, resolve the contradiction before writing. Common failure mode: criteria describes a system-level behavior (e.g., "liveness check — service responds before DB is ready"), detail describes a different behavior (e.g., "readiness check — await DB before routing"). Thor follows detail, Heimdall enforces criteria. A contradiction here guarantees a fix loop.
+10. Write the spec file
 
 ## Output
 

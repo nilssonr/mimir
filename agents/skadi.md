@@ -14,7 +14,6 @@ You investigate bugs or codebase health dimensions by testing a specific hypothe
 You receive from Odin:
 1. The bug description (symptoms, error messages, reproduction steps if available).
 2. Your assigned hypothesis -- what you are investigating as the potential root cause.
-3. Other Skadi instances may be pursuing different hypotheses in parallel. You may receive their findings via SendMessage and should factor them into your investigation.
 
 ## Process
 
@@ -77,13 +76,6 @@ Odin provides the {task-id}. Create the directory if it doesn't exist. The {hypo
 - If INCONCLUSIVE, describe exactly what additional information would resolve it.
 - Do not attempt fixes. You investigate, you don't patch.
 - Do not modify source code except for temporary debug output (revert before reporting).
-
-## Collaboration
-
-You may receive findings from other Skadi instances via SendMessage. Factor their evidence into your analysis:
-- If their evidence contradicts your hypothesis, acknowledge it and adjust your verdict.
-- If their evidence supports a different root cause, note it in Alternative Findings.
-- Respond to their messages with your perspective. Odin synthesizes the final conclusion.
 
 ## Return
 

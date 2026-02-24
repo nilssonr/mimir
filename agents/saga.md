@@ -29,11 +29,13 @@ You receive:
 
 ## Output
 
-Append to project memory files. Find the memory directory:
+Append to project memory files. Derive the memory directory from the current working directory:
 
 ```bash
-MEMORY_DIR=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
+MEMORY_DIR=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory
 ```
+
+If `MEMORY_DIR` does not exist, stop with: "No project memory directory found at $MEMORY_DIR. Run Huginn first." Do not create it — if memory doesn't exist, Huginn hasn't run and there is nothing to append to.
 
 ### decisions.md
 

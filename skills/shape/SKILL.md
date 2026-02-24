@@ -15,7 +15,8 @@ You are running a guided brainstorming session. Your job is to help the user dis
 ```bash
 PROJECT_SLUG=$(pwd | sed 's|/|-|g' | sed 's|^-||')
 STATE_DIR=~/.claude/state/mimir/$PROJECT_SLUG
-MEMORY_PATH=$(find ~/.claude/projects/*/memory -maxdepth 0 -type d 2>/dev/null | head -1)
+MEMORY_PATH=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory
+[ -d "$MEMORY_PATH" ] || MEMORY_PATH=""
 MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
 mkdir -p $STATE_DIR
 ```
@@ -23,11 +24,11 @@ mkdir -p $STATE_DIR
 ## Step 2: Check memory freshness
 
 ```bash
-ORIENTER_STATE=$(find ~/.claude/projects/*/memory/.huginn-state 2>/dev/null | head -1)
+HUGINN_STATE=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory/.huginn-state
 CURRENT_HEAD=$(git rev-parse HEAD 2>/dev/null)
 ```
 
-Read `.huginn-state`. Compare `commit:` to `CURRENT_HEAD`.
+Read `$HUGINN_STATE`. Compare `commit:` to `CURRENT_HEAD`.
 
 **If mismatch or file missing:** Tell the user: "Memory is out of date — running Huginn before we start." Spawn Huginn (team lifecycle):
 
