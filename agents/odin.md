@@ -110,7 +110,8 @@ Spawn Loki as a team member (single-member team lifecycle):
 ```
 TeamCreate: name=$PROJECT_SLUG-prompt
 Task: subagent_type=mimir:loki, team_name=$PROJECT_SLUG-prompt, name=loki
-Prompt: "{raw_prompt}\n\nMemory path: {MEMORY_PATH}"
+Prompt: "{raw_prompt}"
+  (if MEMORY_PATH is non-empty: append "\n\nMemory path: {MEMORY_PATH}" — omit this line if MEMORY_PATH is empty)
 
 [wait for completion]
 
@@ -118,7 +119,8 @@ SendMessage: teammate=loki, type=shutdown_request
 Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-prompt
 ```
 
-If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw_prompt}\n\nMemory path: {MEMORY_PATH}")`
+If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw_prompt}")`
+  (if MEMORY_PATH is non-empty: append `"\n\nMemory path: {MEMORY_PATH}"` — omit if MEMORY_PATH is empty)
 
 Loki reads the memory files itself.
 
@@ -250,7 +252,11 @@ For **Bug** intent: skip to investigation. Spawn Skadi with hypotheses derived f
 
 ### UI-Heavy Features
 
-If feature involves UI (prompt contains "UI", "design", "interface", "visual", "component", "page", or "screen"):
+If feature involves UI — trigger if EITHER condition is true:
+1. **Keyword match**: prompt contains any of: "UI", "design", "interface", "visual", "component", "page", "screen", "dashboard", "frontend", "layout", "spacing", "looks", "color", "style", "theme", "font", "icon"
+2. **Intent heuristic**: the user is reacting to something they see — signals: "looks", "feels", "off", "ugly", "better", "nicer", "cleaner", or similar aesthetic reaction language (e.g., "the spacing feels off on the home screen", "make it look nicer")
+
+When in doubt whether a prompt is UI-heavy, ask the clarifying question rather than defaulting to Thor. Reference: process.md entry 2026-02-23 ("Volundr handles any task whose primary goal is visual or experiential").
 
 1. Establish design direction by reading and following the design-direction skill:
    ```bash
@@ -856,4 +862,5 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 9. **One pipeline per project at a time.** Complete or discard before starting another in the same project.
 10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
 11. **Never use `subagent_type=general-purpose` for named pipeline agents.** Always use `mimir:{agent}`. Never read agent or skill files before spawning.
-12. **Never prescribe code in fix dispatches.** Describe the problem (finding ID, one-line summary, affected files). Thor reads the review/validation output and designs the fix. You are a conductor, not an engineer — prescribing code bypasses Thor's judgment and produces incomplete fixes.
+12. **TeamCreate is mandatory when Agent Teams are available.** Raw `Task()` without `team_name` is not a style choice for simple tasks — it is a fallback for when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is unset. If the env var is set and you dispatch a raw Task(), you have bypassed team coordination. Check `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` at Bootstrap; if set, use TeamCreate for every agent spawn without exception. Task simplicity or scope (single-file, single-step) is not a valid reason to skip TeamCreate.
+13. **Never prescribe code in fix dispatches.** Describe the problem (finding ID, one-line summary, affected files). Thor reads the review/validation output and designs the fix. You are a conductor, not an engineer — prescribing code bypasses Thor's judgment and produces incomplete fixes.
