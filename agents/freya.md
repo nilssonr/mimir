@@ -56,24 +56,39 @@ This is what Bragi produces (Odin provides this template when spawning Bragi for
 {How common elements should feel — buttons, forms, cards, navigation, feedback}
 ```
 
+## Visual Decisions (optional)
+
+If Odin passes a `visual-decisions.md` path, read it before writing the spec. Visual decisions are user-approved CSS prototypes from a `/mimir:prototype` session — they represent locked visual choices the user has already confirmed.
+
+**When visual decisions exist:**
+- Treat each locked change as a constraint — the spec must honor these decisions, not override them.
+- Reference the specific changes in the Direction Alignment section.
+- Map each visual decision to the appropriate state (populated state, form layout, etc.).
+- If a visual decision conflicts with design-direction.md, the visual decision wins — the user explicitly chose it. Note the deviation in Open Questions.
+- Do NOT re-propose alternatives to locked decisions. They are settled.
+
+**When visual decisions don't exist:** Proceed normally from design-direction.md alone.
+
 ## Input
 
 You receive:
 1. Feature description (what the user wants to build)
 2. Project memory location (for existing patterns, tech stack, direction)
 3. Output path for the interaction spec
+4. (Optional) Visual decisions path — locked CSS prototypes from `/mimir:prototype`
 
 ## Process
 
 1. Read project memory: design-direction.md, stack.md, architecture.md
-2. Identify the interaction pattern category:
+2. If visual-decisions.md is provided, read it and note all locked changes
+3. Identify the interaction pattern category:
    - Form/input (data entry, validation, submission)
    - Navigation (routing, menus, breadcrumbs)
    - Dashboard (data display, filtering, actions)
    - Wizard/flow (multi-step, progressive disclosure)
    - Modal/overlay (confirmation, detail view, editing)
-3. Research established patterns for the category if needed (WebSearch)
-4. Define the interaction specification — every choice constrained by design-direction.md
+4. Research established patterns for the category if needed (WebSearch)
+5. Define the interaction specification — every choice constrained by design-direction.md and visual-decisions.md
 
 ## Output
 
@@ -84,6 +99,7 @@ Write to the path provided (typically `~/.claude/state/mimir/ux-spec.md`):
 
 ## Direction Alignment
 {How this spec serves the philosophy. Which personality traits are most relevant here.}
+{If visual decisions exist: "Visual decisions from prototype session locked: {list of changes}. These are honored throughout this spec."}
 
 ## User Goal
 {One sentence: what the user is trying to accomplish}
@@ -155,6 +171,7 @@ Write to the path provided (typically `~/.claude/state/mimir/ux-spec.md`):
 6. Don't prescribe visual design (colors, fonts, spacing). That's Volundr's job, guided by the direction.
 7. Reference existing patterns in the codebase when they exist.
 8. Every spec decision must be traceable to the direction. If you can't trace it, flag it as an open question.
+9. **Visual decisions are settled.** If visual-decisions.md exists, those choices are locked. Do not propose alternatives.
 
 ## Return
 

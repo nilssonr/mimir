@@ -253,6 +253,7 @@ When the user selects "Plan first" for a feature whose primary deliverable is vi
 
 ```bash
 DESIGN_DIR=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory/design-direction.md
+VISUAL_DECISIONS=$STATE_DIR/visual-decisions.md
 ```
 
 **How to determine if a feature is primarily a UI feature**: Use judgment. A UI feature's primary deliverable is what the user sees and interacts with. If the prompt describes a backend change that happens to affect a UI (e.g., "add an API endpoint for the dashboard"), it is NOT a UI feature — go straight to Frigg. If you're uncertain, ask the user before proceeding.
@@ -263,7 +264,10 @@ DESIGN_DIR=~/.claude/projects/$(pwd | sed 's|/|-|g')/memory/design-direction.md
 TeamCreate: name=$PROJECT_SLUG-ux
 Task: subagent_type=mimir:freya, team_name=$PROJECT_SLUG-ux, name=freya
 Prompt: "Feature: {description}\nMemory path: {MEMORY_PATH}\nOutput: $STATE_DIR/ux-spec.md"
+```
+If `$VISUAL_DECISIONS` exists, append to the prompt: `"\nVisual decisions: $STATE_DIR/visual-decisions.md"`
 
+```
 [wait for completion]
 
 SendMessage: teammate=freya, type=shutdown_request
@@ -282,7 +286,7 @@ AskUserQuestion (header: "Design direction"):
 
 If "Proceed without design direction": skip Freya. Pass only the task description to Frigg (no UX spec). Use `mimir:volundr` for frontend groups.
 
-**`design-direction` is user-invoked only.** Odin never starts the design-direction workflow automatically. `/mimir:design-direction` is the entry point.
+**`design-direction` and `prototype` are user-invoked only.** Odin never starts the design-direction or prototype workflows automatically. `/mimir:design-direction` establishes the design language. `/mimir:prototype` iterates visually on a specific page before planning. Both are entry points the user chooses.
 
 ## Phase 3: Plan
 

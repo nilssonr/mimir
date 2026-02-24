@@ -1,4 +1,4 @@
-# Mimir · v2.7.0
+# Mimir · v2.8.0
 
 A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, reviews the plan, implements it, validates it, reviews the code, and captures what it learned — then asks you what to do with the result.
 
@@ -76,7 +76,7 @@ You describe the task
   → Odin asks: create PR / merge locally / discard
 ```
 
-For UI features, establish design direction first with `/mimir:design-direction`. When `design-direction.md` exists in project memory, Odin spawns Freya to produce interaction specs before Frigg plans and Volundr implements.
+For UI features, establish design direction first with `/mimir:design-direction`. Optionally, run `/mimir:prototype` on a specific page to iterate on visual changes via live CSS injection before planning — locked decisions carry forward into the spec automatically. When `design-direction.md` exists in project memory, Odin spawns Freya to produce interaction specs before Frigg plans and Volundr implements.
 
 For bugs, Skadi investigates hypotheses in parallel before implementation.
 
@@ -86,6 +86,7 @@ For bugs, Skadi investigates hypotheses in parallel before implementation.
 
 - [Claude Code](https://code.claude.com) — latest version
 - Git — Mimir creates branches and worktrees
+- **For visual prototyping** (`/mimir:prototype`): [Chrome DevTools MCP](https://github.com/nicholasoxford/chrome-mcp-server) configured in your `.mcp.json`
 - **For parallel dispatch** (multiple implementers): `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in your `~/.claude/settings.json`
 
 ```json
@@ -242,7 +243,7 @@ The implementer. Receives a spec or direct task, reads existing tests before tou
 ### Volundr
 **File**: `agents/volundr.md` | **Model**: Sonnet | **Skills**: frontend-design, design-system, git-workflow
 
-The frontend craftsman. Used instead of Thor for UI work. Implements from Freya's interaction spec, verifies visually using Chrome DevTools MCP, checks accessibility, iterates until it matches the spec. Signals `BLOCKED` to Odin via SendMessage if it cannot proceed.
+The frontend craftsman. Used instead of Thor for UI work. Implements from Freya's interaction spec, verifies visually using Chrome DevTools MCP, checks accessibility, iterates until it matches the spec. Also operates in **prototype mode** during `/mimir:prototype` sessions — injecting ephemeral CSS and taking screenshots for rapid visual iteration without modifying source files. Signals `BLOCKED` to Odin via SendMessage if it cannot proceed.
 
 ### Heimdall
 **File**: `agents/heimdall.md` | **Model**: Sonnet | **Skills**: review-standards
@@ -286,12 +287,12 @@ The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi ins
 ### Freya
 **File**: `agents/freya.md` | **Model**: Sonnet
 
-The UX designer. Requires `design-direction.md` in project memory — if it's absent, she refuses immediately. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
+The UX designer. Requires `design-direction.md` in project memory — if it's absent, she refuses immediately. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. When `visual-decisions.md` exists from a `/mimir:prototype` session, those locked choices are treated as constraints — Freya honors them rather than re-proposing alternatives. Never writes code.
 
 ### Mimir
 **File**: `agents/mimir.md` | **Model**: Sonnet
 
-The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground. Can dispatch Bragi for research tasks that require external sources.
+The advisor. Used for working on Mimir itself — not on your projects. Reads an index of accumulated knowledge at bootstrap, then loads individual memory files on demand as topics arise during the session. Reads past run issues, researches Claude Code internals, proposes improvements with evidence, challenges bad ideas. Epistemically strict: every claim is labeled KNOWN, INFERRED, or UNCERTAIN. Invokes the Uncertainty Protocol (AskUserQuestion gate) before proceeding on unverified ground. Can dispatch Bragi for research tasks that require external sources.
 
 ---
 
@@ -387,6 +388,48 @@ When run: checks whether a direction already exists. If absent, Bragi researches
 
 Run `/mimir:design-direction` before starting UI feature work. Once `design-direction.md` exists, Odin will spawn Freya automatically when you select "Plan first" on a UI feature.
 
+### prototype
+**File**: `skills/prototype/SKILL.md` | **User-invocable**: `/mimir:prototype [page URL and what to improve]`
+
+Visual prototyping via live CSS injection. Use when you want to iterate on the look and feel of a specific page before committing to a full pipeline run. Runs in Odin's context, spawns Volundr in prototype mode for browser interaction.
+
+The loop: screenshot the current page → propose named change options → user selects → inject CSS via Chrome DevTools MCP → per-element feedback → keep/drop/adjust → lock decisions. Max 3 rounds — if direction still feels wrong after 3, that's a signal to revisit `/mimir:design-direction`.
+
+Writes `visual-decisions.md` to pipeline state. When you subsequently run a UI feature task, Odin passes these decisions to Freya, who treats them as locked constraints in the interaction spec.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#94a3b8'}}}%%
+flowchart TD
+    classDef you      fill:#fde68a,stroke:#d97706,stroke-width:2px,color:#1c1917,font-weight:bold
+    classDef odin     fill:#fef3c7,stroke:#d97706,stroke-width:1px,color:#78350f
+    classDef volundr  fill:#e0e7ff,stroke:#4338ca,stroke-width:1px,color:#312e81
+    classDef gate     fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,color:#475569
+    classDef write    fill:#d1fae5,stroke:#059669,stroke-width:1px,color:#064e3b
+
+    U(["/mimir:prototype<br/>localhost:3000/login<br/>— feels bland"]):::you
+
+    U --> DD{"design<br/>direction?"}:::gate
+    DD -->|missing| WARN["warn: prototyping<br/>without direction"]:::odin
+    WARN --> PROCEED{"proceed or<br/>establish first?"}:::gate
+    PROCEED -->|establish| STOP(["run /mimir:design-direction"]):::odin
+    PROCEED -->|proceed| VOL
+    DD -->|exists| VOL
+
+    VOL["Volundr<br/>screenshot page<br/>describe current state"]:::volundr
+    VOL --> OPT["propose 4-6<br/>named change options"]:::odin
+    OPT --> SEL{"user<br/>selects"}:::gate
+    SEL --> CSS["Volundr<br/>inject CSS<br/>screenshot result"]:::volundr
+    CSS --> FB{"per-element<br/>feedback"}:::gate
+    FB -->|lock| WRITE
+    FB -->|adjust| CSS
+    FB -->|start over| OPT
+
+    WRITE["write<br/>visual-decisions.md"]:::write
+    WRITE --> DONE(["locked decisions<br/>ready for Freya"]):::odin
+```
+
+Requires [Chrome DevTools MCP](https://github.com/nicholasoxford/chrome-mcp-server) configured in your project's `.mcp.json`. The `evaluate_script` tool enables runtime CSS injection; `take_screenshot` captures the result.
+
 ---
 
 ## Hooks
@@ -477,6 +520,14 @@ Once `design-direction.md` exists, Odin detects it automatically when you select
 
 Once written, `design-direction.md` persists across all future UI work for the project. Freya reads it before every interaction spec. Volundr reads it before every implementation. Forseti enforces the Verifiable Rules section on every UI diff.
 
+#### Visual prototyping (optional)
+
+Run `/mimir:prototype` on a specific page to iterate visually before planning. This writes `visual-decisions.md` to pipeline state — a file containing each locked CSS change with its rationale.
+
+When a subsequent UI feature task runs, Odin passes `visual-decisions.md` to Freya. She treats locked changes as constraints: they override the interaction spec's defaults and are not re-proposed or reconsidered. Rejected options are also recorded so Freya avoids re-proposing them.
+
+This is optional — Freya produces complete interaction specs from `design-direction.md` alone. Visual prototyping adds precision when you know what a page should look like but can't describe it in words.
+
 #### Project-level learnings
 
 Saga writes two additional memory files after every successful pipeline run:
@@ -516,6 +567,10 @@ conductor_notes:          # out-of-pipeline events Odin appended
 ```
 
 If you open a session and `pipeline.yaml` exists with a non-`complete` stage, Odin offers to resume or start fresh.
+
+#### visual-decisions.md
+
+Written by `/mimir:prototype`. Contains the locked CSS changes, rejected options, and original user intent from a prototyping session. Read by Freya (via Odin) during interaction spec creation for UI features. Scoped to the current pipeline — not persisted across projects.
 
 #### issues.md
 
