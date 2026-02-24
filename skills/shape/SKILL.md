@@ -69,7 +69,8 @@ SendMessage: teammate=loki, type=shutdown_request
 Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-shape-loki
 ```
 
-If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw idea}" (append "\n\nMemory path: {MEMORY_PATH}" only if MEMORY_PATH is non-empty))`
+If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw idea}")`
+  (if MEMORY_PATH is non-empty: append `"\n\nMemory path: {MEMORY_PATH}"` — omit if MEMORY_PATH is empty)
 
 Parse Loki's response:
 

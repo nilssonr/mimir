@@ -64,7 +64,7 @@ SendMessage: teammate=bragi, type=shutdown_request
 Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-direction
 ```
 
-Bragi writes the full draft design-direction.md to `$DESIGN_DIR`. After Bragi shutdown: read `$DESIGN_DIR`, present a one-paragraph summary to the user (Philosophy + 3 Personality traits). Then proceed to **Step 4** (brainstorming loop).
+Bragi writes the full draft design-direction.md to `$DESIGN_DIR`. After Bragi shutdown: check that `$DESIGN_DIR` exists and is non-empty. If absent or empty: tell the user "Bragi failed to write a design direction draft. Check the team output and retry." Stop. Otherwise: read `$DESIGN_DIR`, present a one-paragraph summary to the user (Philosophy + 3 Personality traits). Then proceed to **Step 4** (brainstorming loop).
 
 ## Step 3B: Existing direction (DIRECTION_EXISTS=yes)
 
