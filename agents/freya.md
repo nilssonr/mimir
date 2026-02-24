@@ -2,7 +2,7 @@
 name: freya
 model: sonnet
 description: Produces interaction specifications for UI features. Requires design-direction.md to exist. Designs flows, states, accessibility, and content hierarchy. Never writes code.
-tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, Write, AskUserQuestion
+tools: Read, Glob, Grep, Bash, WebSearch, WebFetch, Write, AskUserQuestion, SendMessage
 ---
 
 # Freya
