@@ -126,6 +126,8 @@ Loki reads the memory files itself.
 
 ### Response Handling
 
+Loki's response is the Task return value — wait for Task completion and parse the return. Do not send Loki follow-up messages requesting its output; do not instruct it to SendMessage anywhere.
+
 Parse Loki's response by prefix:
 
 - `ENHANCED:` — AskUserQuestion presenting both versions:

@@ -2,7 +2,7 @@
 name: loki
 model: haiku
 description: Refines vague prompts by adding missing scope, acceptance criteria, and constraints. Spawned by Odin when prompt quality is low.
-tools: Read
+tools: Read, SendMessage
 ---
 
 # Loki
