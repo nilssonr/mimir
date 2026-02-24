@@ -61,7 +61,7 @@ Spawn Loki (team lifecycle):
 ```
 TeamCreate: name=$PROJECT_SLUG-shape-loki
 Task: subagent_type=mimir:loki, team_name=$PROJECT_SLUG-shape-loki, name=loki
-Prompt: "{raw idea}\n\nMemory path: {MEMORY_PATH}"
+Prompt: "{raw idea}" (append "\n\nMemory path: {MEMORY_PATH}" only if MEMORY_PATH is non-empty)
 
 [wait for completion]
 
@@ -69,7 +69,7 @@ SendMessage: teammate=loki, type=shutdown_request
 Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-shape-loki
 ```
 
-If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw idea}\n\nMemory path: {MEMORY_PATH}")`
+If Agent Teams unavailable: `Task(subagent_type=mimir:loki, prompt="{raw idea}" (append "\n\nMemory path: {MEMORY_PATH}" only if MEMORY_PATH is non-empty))`
 
 Parse Loki's response:
 
