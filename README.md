@@ -1,4 +1,4 @@
-# Mimir · v2.8.0
+# Mimir · v2.9.0
 
 A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, reviews the plan, implements it, validates it, reviews the code, and captures what it learned — then asks you what to do with the result.
 
@@ -18,6 +18,7 @@ flowchart LR
     Sk(["Skadi<br/>hunt bugs"]):::side
     Br(["Bragi<br/>research"]):::side
     Fy(["Freya<br/>UX design"]):::side
+    Hm(["Hermod<br/>PR & CI"]):::side
     Fr["Frigg<br/>plan & spec"]:::core
     Fo_s["Forseti<br/>spec review"]:::core
     T["Thor<br/>implement"]:::core
@@ -31,6 +32,7 @@ flowchart LR
     O -.->|bug| Sk
     O -.->|research| Br
     O -.->|UI feature + direction exists| Fy
+    O -.->|create PR| Hm
     Fy -.-> Fr
     O -->|feature · fix| Fr
     Fr --> Fo_s --> T --> He --> Fo --> Sa --> O
@@ -74,6 +76,7 @@ You describe the task
   → Forseti reviews the diff for correctness, security, maintainability
   → Saga captures learnings to project memory
   → Odin asks: create PR / merge locally / discard
+  → If PR: Hermod pushes, creates the PR, and optionally monitors CI
 ```
 
 For UI features, establish design direction first with `/mimir:design-direction`. Optionally, run `/mimir:prototype` on a specific page to iterate on visual changes via live CSS injection before planning — locked decisions carry forward into the spec automatically. When `design-direction.md` exists in project memory, Odin spawns Freya to produce interaction specs before Frigg plans and Volundr implements.
@@ -215,7 +218,7 @@ If any implementer signals it's blocked (can't proceed without external input), 
 
 At the end of a pipeline, Odin presents:
 
-- **Create PR** — pushes the feature branch and opens a PR via `gh`
+- **Create PR** — Hermod pushes the branch, composes the PR, and creates it via `gh`. Odin then offers to monitor CI: if you accept, Hermod watches GitHub Actions and reports failures for automatic fixing (max 2 iterations). You control when to merge.
 - **Merge locally** — merges the feature branch to your starting branch
 - **Discard** — resets to the starting commit, deletes the branch
 
@@ -259,6 +262,11 @@ The reviewer. Supports two fundamentally different review modes:
 
 **Spec review**: Reviews a Frigg-produced spec before any code is written. Applies six spec-specific dimensions (criteria falsifiability, AC-to-step coverage, criteria vs. detail consistency, dependency accuracy, file list completeness, parallelization safety). Does not apply code-quality dimensions to prose planning documents. Suppresses findings below 60% confidence. Produces `forseti-spec-review.md`.
 
+### Hermod
+**File**: `agents/hermod.md` | **Model**: Haiku | **Skills**: git-workflow
+
+The messenger. Creates pull requests and optionally monitors CI pipelines. Dispatched by Odin in the terminal phase — replaces the old inline PR composition. Two dispatch modes: **create-pr** (push branch, compose title/body from spec, create via `gh pr create`, report URL) and **monitor-ci** (poll `gh pr checks`, report pass/fail/timeout). Never merges — that's your decision. When CI fails, Hermod reports the details to Odin, who dispatches Thor to fix (max 2 iterations).
+
 ### Saga
 **File**: `agents/saga.md` | **Model**: Haiku
 
@@ -272,7 +280,7 @@ Odin's raven of thought. Surveys a new or unfamiliar project and writes structur
 ### Loki
 **File**: `agents/loki.md` | **Model**: Haiku
 
-The transformer. Receives a vague prompt and project memory context. Uses five dimensions (scope, context, acceptance criteria, constraints, file references) to decide: `SUFFICIENT` if the prompt is already specific, `ENHANCED` if memory can fill the gaps, or `CLARIFY` if only the user can resolve the ambiguity. The output format is mandatory for every response — Loki never falls back to free-text, even for highly ambiguous input. CLARIFY questions always lead with what Loki found in context. If CLARIFY is needed twice, Odin stops and tells the user to rephrase.
+The assessor. Receives any prompt and project memory context. Uses five dimensions (scope, context, acceptance criteria, constraints, file references) to decide: `SUFFICIENT` if the prompt is already specific, `ENHANCED` if memory can fill the gaps, or `CLARIFY` if only the user can resolve the ambiguity. The output format is mandatory for every response regardless of input specificity — Loki never falls back to free-text. CLARIFY questions always lead with what Loki found in context. If CLARIFY is needed twice, Odin stops and tells the user to rephrase.
 
 ### Bragi
 **File**: `agents/bragi.md` | **Model**: Sonnet
@@ -306,7 +314,7 @@ Skills are reusable instruction sets declared in each agent's frontmatter. When 
 Write-only test-driven development. RED (write tests) → GREEN (write minimum implementation) → REFACTOR (clean up) → COMMIT. The critical constraint: **never run tests**. Heimdall runs all verification. This keeps Thor's context clean and separates concerns cleanly.
 
 ### git-workflow
-**File**: `skills/git-workflow/SKILL.md` | **Used by**: Thor, Volundr
+**File**: `skills/git-workflow/SKILL.md` | **Used by**: Thor, Volundr, Hermod
 
 Conventional commit format (`type(scope): description`), branching conventions, HEREDOC commit messages, pushing rules. The `commit-validator` hook enforces the format at the shell level — this skill teaches agents the same standard so they write correct messages the first time.
 

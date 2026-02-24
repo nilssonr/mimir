@@ -760,27 +760,60 @@ AskUserQuestion:
 
 ### Create PR
 
-Spawn a general-purpose agent to compose the PR (haiku):
+Dispatch Hermod to create the PR. Hermod handles push, PR composition, and `gh pr create` — Odin does not run these commands directly.
 
 ```
 TeamCreate: name={SLUG}-pr
-Task: subagent_type=general-purpose, team_name={SLUG}-pr, name=pr-composer
-Prompt: "Compose a PR title (<70 chars) and body with ## Summary and ## Test plan from: $(git log $STARTING_BRANCH..feat/$SLUG --oneline)"
+Task: subagent_type=mimir:hermod, team_name={SLUG}-pr, name=hermod
+Prompt: "Mode: create-pr\nFeature branch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md"
 
-[wait for completion]
+[wait for Hermod's SendMessage with PR URL]
 
-SendMessage: teammate=pr-composer, type=shutdown_request
+SendMessage: teammate=hermod, type=shutdown_request
 Wait for shutdown_response. TeamDelete: name={SLUG}-pr
 ```
 
-If Agent Teams unavailable: `Task(subagent_type=general-purpose, prompt="Compose a PR title (<70 chars) and body...")`
+If Agent Teams unavailable: `Task(subagent_type=mimir:hermod, prompt="Mode: create-pr\nFeature branch: feat/{SLUG}\nStarting branch: {STARTING_BRANCH}\nSpec: $STATE_DIR/spec.md")`
 
-```bash
-git push -u origin feat/$SLUG
-gh pr create --title "{title}" --body "{body}"
+Present the PR URL to the user.
+
+### Monitor CI (optional)
+
+After PR creation, ask the user whether to monitor CI:
+
+AskUserQuestion (header: "CI monitoring"):
+► Monitor CI pipeline — Hermod watches GitHub Actions and reports back
+► Done — PR is created, I'll take it from here
+
+**If "Done":** proceed to pipeline completion.
+
+**If "Monitor CI pipeline":** dispatch Hermod for CI monitoring:
+
+```
+TeamCreate: name={SLUG}-ci
+Task: subagent_type=mimir:hermod, team_name={SLUG}-ci, name=hermod
+Prompt: "Mode: monitor-ci\nPR number: {number}"
+
+[wait for Hermod's status report via SendMessage]
+
+SendMessage: teammate=hermod, type=shutdown_request
+Wait for shutdown_response. TeamDelete: name={SLUG}-ci
 ```
 
-Return the PR URL.
+If Agent Teams unavailable: `Task(subagent_type=mimir:hermod, prompt="Mode: monitor-ci\nPR number: {number}")`
+
+**If Hermod reports CI passed:** tell the user. "CI passed: all checks green on PR #{number}."
+
+**If Hermod reports CI failed:** present the failures to the user. Then offer to fix:
+
+AskUserQuestion (header: "CI failure"):
+► Auto-fix — dispatch Thor to fix, then re-monitor (Recommended: clear failure, iteration < 2)
+► I'll fix manually
+► Ignore CI failures
+
+If "Auto-fix" and ci_fix_count < 2: spawn Thor to fix the CI failure (same pattern as Phase 5 fix loop — describe the problem, don't prescribe code). After Thor commits and pushes, re-dispatch Hermod to monitor the new CI run. Increment ci_fix_count. If ci_fix_count reaches 2 and CI still fails: escalate to the user.
+
+**If Hermod reports CI timeout:** tell the user. "CI checks still pending after 10 minutes. Check GitHub directly."
 
 ### Merge Locally
 
@@ -914,6 +947,7 @@ Spawn agents by name. The platform loads the agent file body as the system promp
 | Forseti | mimir:forseti | sonnet | review-standards |
 | Skadi | mimir:skadi | sonnet | — |
 | Saga | mimir:saga | haiku | — |
+| Hermod | mimir:hermod | haiku | git-workflow |
 
 ## Pipeline State
 
@@ -944,10 +978,10 @@ Append to `conductor_notes` whenever doing something outside the standard pipeli
 4. **If no clear signal, present options equally.** "No strong signal either way."
 5. **Keep recommendations to one sentence.** The parenthetical after the option label is sufficient.
 6. **The user always sees all options.** Recommendation is the default, not the only choice.
-7. **Max iterations.** 2 fix loops for validation, 2 for review. Then escalate.
+7. **Max iterations.** 2 fix loops for validation, 2 for review, 2 for CI. Then escalate.
 8. **Clean up.** Remove worktrees and temporary branches at terminal.
 9. **One pipeline per project at a time.** Complete or discard before starting another in the same project.
-10. **No push prompts.** Never suggest pushing. PR creation handles the push. User pushes manually otherwise.
+10. **No push prompts.** Never suggest pushing. Hermod handles the push during PR creation. User pushes manually otherwise.
 11. **Never use `subagent_type=general-purpose` for named pipeline agents.** Always use `mimir:{agent}`. Never read agent or skill files before spawning.
 12. **TeamCreate is mandatory when Agent Teams are available.** Raw `Task()` without `team_name` is not a style choice for simple tasks — it is a fallback for when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is unset. If the env var is set and you dispatch a raw Task(), you have bypassed team coordination. Check `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` at Bootstrap; if set, use TeamCreate for every agent spawn without exception. Task simplicity or scope (single-file, single-step) is not a valid reason to skip TeamCreate.
 13. **Never prescribe code in fix dispatches.** Describe the problem (finding ID, one-line summary, affected files). Thor reads the review/validation output and designs the fix. You are a conductor, not an engineer — prescribing code bypasses Thor's judgment and produces incomplete fixes.
