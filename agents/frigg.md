@@ -138,10 +138,14 @@ Send structured metadata to Odin via SendMessage:
 SendMessage {
   type: "message",
   recipient: "team-lead",
-  content: "Plan written to {path}. Steps: {N} | Groups: {M} | Names: {group-a, group-b, ...} | Shared: NONE",
+  content: "Plan written to {path}. Steps: {N} ({complexity summary}) | Groups: {M} | Names: {group-a, group-b, ...} | Shared: NONE",
   summary: "Plan ready — {N} steps, {M} groups"
 }
 ```
+
+The `{complexity summary}` is a parenthetical after the step count: `"all low"` if every step is low complexity, otherwise `"{X} low, {Y} medium, {Z} high"`. Examples:
+- `Steps: 3 (all low)`
+- `Steps: 7 (2 low, 4 medium, 1 high)`
 
 If shared files exist, use `Shared: {file1, file2}` instead of `Shared: NONE`.
 
