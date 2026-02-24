@@ -1,6 +1,6 @@
-# Mimir · v2.6.0
+# Mimir · v2.7.0
 
-A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, implements it, validates it, reviews it, and captures what it learned — then asks you what to do with the result.
+A Claude Code plugin that orchestrates software engineering work through a pipeline of specialized agents. You describe what you want to build. Mimir plans it, reviews the plan, implements it, validates it, reviews the code, and captures what it learned — then asks you what to do with the result.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': {'lineColor': '#94a3b8'}}}%%
@@ -19,9 +19,10 @@ flowchart LR
     Br(["Bragi<br/>research"]):::side
     Fy(["Freya<br/>UX design"]):::side
     Fr["Frigg<br/>plan & spec"]:::core
+    Fo_s["Forseti<br/>spec review"]:::core
     T["Thor<br/>implement"]:::core
     He["Heimdall<br/>validate"]:::core
-    Fo["Forseti<br/>review"]:::core
+    Fo["Forseti<br/>code review"]:::core
     Sa[("Saga<br/>remember")]:::memory
 
     You --> O
@@ -29,11 +30,10 @@ flowchart LR
     O -.->|vague prompt| Lo
     O -.->|bug| Sk
     O -.->|research| Br
-    O -.->|UI feature| Fy
-    Br -.-> Fy
+    O -.->|UI feature + direction exists| Fy
     Fy -.-> Fr
     O -->|feature · fix| Fr
-    Fr --> T --> He --> Fo --> Sa --> O
+    Fr --> Fo_s --> T --> He --> Fo --> Sa --> O
 ```
 
 ---
@@ -65,6 +65,9 @@ You describe the task
   → Odin orients (Huginn surveys the codebase if memory is stale)
   → Odin recommends an approach (plan first / just implement / discuss)
   → Frigg produces a spec: steps, file ownership, parallel groups
+  → Forseti reviews the spec for structural quality (criteria consistency,
+    AC coverage, dependency accuracy, parallelization safety)
+  → Odin presents the full plan to you (goal, acceptance criteria, steps)
   → Odin asks how to dispatch (1 Thor, or N parallel Thors in worktrees)
   → Thor implements following write-only TDD
   → Heimdall validates against acceptance criteria, runs tests
@@ -73,7 +76,7 @@ You describe the task
   → Odin asks: create PR / merge locally / discard
 ```
 
-For UI features, Bragi establishes design direction and Freya produces interaction specs before Frigg plans and Volundr implements.
+For UI features, establish design direction first with `/mimir:design-direction`. When `design-direction.md` exists in project memory, Odin spawns Freya to produce interaction specs before Frigg plans and Volundr implements.
 
 For bugs, Skadi investigates hypotheses in parallel before implementation.
 
@@ -180,14 +183,23 @@ For features and fixes, Odin presents a recommendation:
 - **Just implement** — Thor works directly from your description. Recommended for single-file, clear-scope tasks.
 - **Discuss first** — Talk through the approach before committing to implementation.
 
+### What happens after "Plan first"
+
+1. **Frigg writes the spec** — steps with file ownership and parallel groups.
+2. **Forseti reviews the spec** (non-trivial plans only — skipped for plans with ≤3 low-complexity steps). Checks six dimensions: criteria falsifiability, AC-to-step coverage, criteria vs. detail consistency, dependency accuracy, file list completeness, and parallelization safety. If high-confidence issues are found, Odin presents them and offers to dispatch Frigg for a revision before any code is written.
+3. **Odin presents the plan to you** — goal, acceptance criteria, all steps with complexity ratings, and parallelization groups. You see the full plan before you're asked how to dispatch.
+4. **Dispatch decision** — parallel or sequential, based on file overlap and step count.
+
 ### Dispatch options
 
-After Frigg produces a spec, Odin reads the step count, group count, and file ownership:
+After seeing the plan, choose:
 
 - **Single Thor** — sequential, one worktree, no merge needed
 - **Parallel Thors** — each group in its own git worktree, merged after completion
 
 Odin states the observable signal: "Groups share no files → parallel" or "Shared migration file → sequential."
+
+If any implementer signals it's blocked (can't proceed without external input), Odin presents the blocker before proceeding to validation — not after.
 
 ### Review workflows
 
@@ -220,17 +232,17 @@ The orchestrator. Classifies intent, recommends approaches, dispatches agents, t
 ### Frigg
 **File**: `agents/frigg.md` | **Model**: Sonnet
 
-The planner. Explores the codebase, assesses what she finds (tech debt, test coverage gaps, coupling), decomposes into steps with file ownership, groups steps for parallelization, writes the spec. She assesses before decomposing — no silent planning on a shaky foundation.
+The planner. Explores the codebase, assesses what she finds (tech debt, test coverage gaps, coupling), decomposes into steps with file ownership, groups steps for parallelization, writes the spec. Before writing, she cross-checks every step's `criteria` field against its `detail` field — if the criteria asserts X but the detail implements Y and Y doesn't produce X, she resolves the contradiction before writing. No silent planning on a shaky foundation.
 
 ### Thor
 **File**: `agents/thor.md` | **Model**: Sonnet | **Skills**: tdd, git-workflow
 
-The implementer. Receives a spec or direct task, follows write-only TDD (writes tests first, never runs them), commits each step. Works in the project root or a dedicated git worktree for parallel dispatch.
+The implementer. Receives a spec or direct task, reads existing tests before touching the code (both on initial implementation and on fix tasks), follows write-only TDD (writes tests first, never runs them), commits each step. Works in the project root or a dedicated git worktree for parallel dispatch. Signals `BLOCKED` to Odin via SendMessage if it cannot proceed without external input.
 
 ### Volundr
 **File**: `agents/volundr.md` | **Model**: Sonnet | **Skills**: frontend-design, design-system, git-workflow
 
-The frontend craftsman. Used instead of Thor for UI work. Implements from Freya's interaction spec, verifies visually using Chrome DevTools MCP, checks accessibility, iterates until it matches the spec.
+The frontend craftsman. Used instead of Thor for UI work. Implements from Freya's interaction spec, verifies visually using Chrome DevTools MCP, checks accessibility, iterates until it matches the spec. Signals `BLOCKED` to Odin via SendMessage if it cannot proceed.
 
 ### Heimdall
 **File**: `agents/heimdall.md` | **Model**: Sonnet | **Skills**: review-standards
@@ -240,7 +252,11 @@ The validator. Runs the full test suite, checks every acceptance criterion from 
 ### Forseti
 **File**: `agents/forseti.md` | **Model**: Sonnet | **Skills**: review-standards
 
-The reviewer. Reviews diffs across 11 dimensions (correctness, security, error handling, performance, defensiveness, readability, cognitive load, testability, consistency, side effects, API design). Confidence-scores every finding, suppresses below 80. Reads `decisions.md` before flagging deliberate design choices. Produces `review.md`.
+The reviewer. Supports two fundamentally different review modes:
+
+**Code review** (branch, PR, focused, scoped, re-review): Reviews diffs across 11 dimensions (correctness, security, error handling, performance, defensiveness, readability, cognitive load, testability, consistency, side effects, API design). Confidence-scores every finding, suppresses below 80. Reads `decisions.md` before flagging deliberate design choices.
+
+**Spec review**: Reviews a Frigg-produced spec before any code is written. Applies six spec-specific dimensions (criteria falsifiability, AC-to-step coverage, criteria vs. detail consistency, dependency accuracy, file list completeness, parallelization safety). Does not apply code-quality dimensions to prose planning documents. Suppresses findings below 60% confidence. Produces `forseti-spec-review.md`.
 
 ### Saga
 **File**: `agents/saga.md` | **Model**: Haiku
@@ -255,22 +271,22 @@ Odin's raven of thought. Surveys a new or unfamiliar project and writes structur
 ### Loki
 **File**: `agents/loki.md` | **Model**: Haiku
 
-The transformer. Receives a vague prompt and project memory context. Uses five dimensions (scope, context, acceptance criteria, constraints, file references) to decide: `SUFFICIENT` if the prompt is already specific, `ENHANCED` if memory can fill the gaps, or `CLARIFY` if only the user can resolve the ambiguity. CLARIFY questions always lead with what Loki found in context — never generic interrogation. If CLARIFY is needed twice, Odin stops and tells the user to rephrase rather than proceeding with an underspecified prompt.
+The transformer. Receives a vague prompt and project memory context. Uses five dimensions (scope, context, acceptance criteria, constraints, file references) to decide: `SUFFICIENT` if the prompt is already specific, `ENHANCED` if memory can fill the gaps, or `CLARIFY` if only the user can resolve the ambiguity. The output format is mandatory for every response — Loki never falls back to free-text, even for highly ambiguous input. CLARIFY questions always lead with what Loki found in context. If CLARIFY is needed twice, Odin stops and tells the user to rephrase.
 
 ### Bragi
 **File**: `agents/bragi.md` | **Model**: Sonnet
 
-The research agent. Resolves known unknowns from external sources so that Odin and Mimir can make decisions from evidence. Dispatched for Research intents and for design direction sessions (when `design-direction.md` is missing). Receives a structured handoff — Topic, Established (pre-classified facts Bragi won't re-research), Investigate (known unknowns), Purpose, Constraints, Depth — and returns Confidence, Key finding, Synthesis with KNOWN/INFERRED/UNCERTAIN labels, and Open questions. Talks to agents, not humans — never interrupts execution to ask questions.
+The research agent. Resolves known unknowns from external sources so that Odin and Mimir can make decisions from evidence. Dispatched for Research intents and for design direction sessions (when establishing `design-direction.md`). Receives a structured handoff — Topic, Established (pre-classified facts Bragi won't re-research), Investigate (known unknowns), Purpose, Constraints, Depth — and returns Confidence, Key finding, Synthesis with KNOWN/INFERRED/UNCERTAIN labels, and Open questions. Talks to agents, not humans — never interrupts execution to ask questions.
 
 ### Skadi
 **File**: `agents/skadi.md` | **Model**: Sonnet
 
-The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi instances can run in parallel (via Agent Teams), each pursuing a different root cause theory. They share findings via SendMessage and Odin synthesizes the conclusion. Never fixes — only investigates.
+The hunter. Investigates bugs by testing specific hypotheses. Multiple Skadi instances can run in parallel (via Agent Teams), each pursuing a different root cause theory. Each writes its findings to a separate file (`findings-{hypothesis-slug}.md`), which Odin reads and synthesizes. Never fixes — only investigates.
 
 ### Freya
 **File**: `agents/freya.md` | **Model**: Sonnet
 
-The UX designer. Requires `design-direction.md` in project memory (written by Bragi). Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
+The UX designer. Requires `design-direction.md` in project memory — if it's absent, she refuses immediately. Produces interaction specs: states (empty, loading, populated, error, edge cases), interaction flows, content hierarchy, accessibility requirements, responsive behavior. Every decision traces back to the design direction. Never writes code.
 
 ### Mimir
 **File**: `agents/mimir.md` | **Model**: Sonnet
@@ -296,7 +312,7 @@ Conventional commit format (`type(scope): description`), branching conventions, 
 ### review-standards
 **File**: `skills/review-standards/SKILL.md` | **Used by**: Heimdall, Forseti
 
-11-dimension review checklist with confidence scoring (suppress below 80), severity levels (CRIT / WARN / INFO), calibration rules, and finding format. Shared between validation and review so both use identical standards.
+11-dimension review checklist with confidence scoring (suppress below 80), severity levels (CRIT / WARN / INFO), calibration rules, and finding format. Shared between validation and review so both use identical standards. Note: Forseti's spec review type uses separate spec-specific dimensions defined in `forseti.md` directly — not these 11 code-quality dimensions.
 
 ### frontend-design
 **File**: `skills/frontend-design/SKILL.md` | **Used by**: Volundr
@@ -365,9 +381,11 @@ flowchart TD
 ### design-direction
 **File**: `skills/design-direction/SKILL.md` | **User-invocable**: `/mimir:design-direction [feature description]`
 
-The design direction manager. Establishes or refines `design-direction.md` in project memory — the file Freya reads before every interaction spec. When invoked standalone, checks whether a direction already exists: if absent, Bragi researches the appropriate direction for the project's domain and users, then enters a multi-turn brainstorming loop with Freya to refine it. If present, offers Review (alignment gap report), Revise (targeted updates), or Extend (new aspects) — each handled through the same Freya loop.
+The design direction manager. Establishes or refines `design-direction.md` in project memory — the file Freya reads before every interaction spec. Invoked by you when you want to establish or update design direction; **never triggered automatically by Odin.**
 
-Odin also auto-invokes this skill when it detects UI intent ("UI", "design", "interface", "visual", "component", "page", "screen" in the prompt), before spawning Frigg. This ensures design direction is locked before planning begins.
+When run: checks whether a direction already exists. If absent, Bragi researches the appropriate direction for the project's domain and users, then enters a multi-turn brainstorming loop with Freya to refine it. If present, offers Review (alignment gap report), Revise (targeted updates), or Extend (new aspects) — each handled through the same Freya loop.
+
+Run `/mimir:design-direction` before starting UI feature work. Once `design-direction.md` exists, Odin will spawn Freya automatically when you select "Plan first" on a UI feature.
 
 ---
 
@@ -440,13 +458,15 @@ Every claim in memory files must reference a specific file. Huginn never specula
 
 #### How it's read
 
-Odin reads `stack.md` and `domain.md` when dispatching Loki (prompt enhancement). Agents receive relevant memory files injected into their Task prompts by Odin at dispatch time — they do not read memory themselves unless specified in their instructions.
+Odin derives the memory path from the current working directory — it never searches for it. The formula is deterministic: `/Users/you/Code/myapp` → `~/.claude/projects/-Users-you-Code-myapp/memory`. This means project memory is always project-scoped, even when multiple projects exist simultaneously.
 
 Frigg reads all five memory files to anchor her plans in the actual codebase. Thor reads `conventions.md` and `stack.md` to match existing patterns. Forseti reads `conventions.md`, `architecture.md`, and `decisions.md` before reviewing.
 
 #### Design direction (UI projects)
 
-For features involving UI, Odin invokes the `/mimir:design-direction` skill, which coordinates Bragi research and a multi-turn Freya brainstorming session to establish or update the direction. `design-direction.md` is written to project memory and defines:
+Run `/mimir:design-direction` before starting UI feature work. This skill coordinates Bragi research and a multi-turn Freya brainstorming session to establish `design-direction.md` in project memory. Odin never triggers this workflow automatically — it is always user-initiated.
+
+Once `design-direction.md` exists, Odin detects it automatically when you select "Plan first" on a UI feature and spawns Freya to produce an interaction spec before planning. `design-direction.md` defines:
 
 - **Philosophy**: One-sentence guiding principle
 - **Personality**: Adjectives that describe how the product should feel
