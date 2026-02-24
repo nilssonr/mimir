@@ -2,7 +2,7 @@
 name: loki
 model: haiku
 description: Refines vague prompts by adding missing scope, acceptance criteria, and constraints. Spawned by Odin when prompt quality is low.
-tools: Read
+tools: Read, SendMessage
 ---
 
 # Loki
@@ -38,7 +38,7 @@ Choose the format based on what the five dimensions tell you:
 
 ## Output Format
 
-Respond with EXACTLY one of these three formats:
+Send your output to Odin via `SendMessage { type: "message", recipient: "team-lead", content: "<your output>", summary: "<3-5 word label>" }`. Use exactly one of these three formats as the content:
 
 ### SUFFICIENT
 
@@ -85,3 +85,4 @@ Rules:
 - Never add requirements the user didn't imply.
 - Use terminology from the project context when available.
 - If the prompt is already specific enough, return it unchanged with SUFFICIENT.
+- Always deliver output via SendMessage to "team-lead". Never output plain text and go idle — Odin cannot see plain text output in team mode.
