@@ -362,6 +362,13 @@ flowchart TD
     SHAPED -->|skip Phase 0 — Loki ran| P1["Odin Phase 1+<br/>classify → orient → plan → build"]:::pipeline
 ```
 
+### design-direction
+**File**: `skills/design-direction/SKILL.md` | **User-invocable**: `/mimir:design-direction [feature description]`
+
+The design direction manager. Establishes or refines `design-direction.md` in project memory — the file Freya reads before every interaction spec. When invoked standalone, checks whether a direction already exists: if absent, Bragi researches the appropriate direction for the project's domain and users, then enters a multi-turn brainstorming loop with Freya to refine it. If present, offers Review (alignment gap report), Revise (targeted updates), or Extend (new aspects) — each handled through the same Freya loop.
+
+Odin also auto-invokes this skill when it detects UI intent ("UI", "design", "interface", "visual", "component", "page", "screen" in the prompt), before spawning Frigg. This ensures design direction is locked before planning begins.
+
 ---
 
 ## Hooks
@@ -439,7 +446,7 @@ Frigg reads all five memory files to anchor her plans in the actual codebase. Th
 
 #### Design direction (UI projects)
 
-For features involving UI, Bragi conducts a design direction research session and writes `design-direction.md` to project memory. This file defines:
+For features involving UI, Odin invokes the `/mimir:design-direction` skill, which coordinates Bragi research and a multi-turn Freya brainstorming session to establish or update the direction. `design-direction.md` is written to project memory and defines:
 
 - **Philosophy**: One-sentence guiding principle
 - **Personality**: Adjectives that describe how the product should feel

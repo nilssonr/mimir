@@ -405,40 +405,17 @@ done
 
 ### UI-Heavy Features
 
-If feature involves UI (user mentions dashboard, component, page, frontend):
+If feature involves UI (prompt contains "UI", "design", "interface", "visual", "component", "page", or "screen"):
 
-1. Check for design direction:
+1. Establish design direction by reading and following the design-direction skill:
    ```bash
-   find ~/.claude/projects/*/memory/design-direction.md 2>/dev/null | head -1
+   MIMIR_DIR=${CLAUDE_PLUGIN_ROOT:-$(for d in ~/Code/nilssonr/mimir ~/Code/*/mimir ~/.claude/plugins/cache/mimir; do [ -f "$d/agents/odin.md" ] && echo "$d" && break; done 2>/dev/null)}
    ```
-   If missing: spawn Bragi as a team member to establish design direction:
-   ```
-   TeamCreate: name=$PROJECT_SLUG-design
-   Task: subagent_type=mimir:bragi, team_name=$PROJECT_SLUG-design, name=bragi
-   Prompt: "Topic: Design direction for this project
+   Read `$MIMIR_DIR/skills/design-direction/SKILL.md` and execute its steps.
+   Pass the current feature description as `$ARGUMENTS` context.
+   Wait for the skill to return: "design-direction.md ready at {path}."
 
-Established:
-{relevant facts from domain.md and decisions.md — project type, intended users, any prior design decisions or constraints}
-
-Investigate:
-- Visual design language appropriate for this project's domain and users
-- Typography, color palette, motion, and density conventions
-- Component character: how buttons, forms, cards, navigation, and feedback should feel
-
-Purpose: Produce design-direction.md with the structure Freya requires before writing interaction specs. Read {MIMIR_DIR}/agents/freya.md for the exact expected format (Philosophy, Personality, Visual language, Verifiable rules, Constraints, Component character).
-
-Constraints: {stack from stack.md}
-Depth: deep
-Output: {MEMORY_PATH}/design-direction.md"
-
-   [wait for completion]
-
-   SendMessage: teammate=bragi, type=shutdown_request
-   Wait for shutdown_response. TeamDelete: name=$PROJECT_SLUG-design
-   ```
-   If Agent Teams unavailable: `Task(subagent_type=mimir:bragi, prompt="...")`
-
-   If design direction already exists: proceed.
+   Note: This is the one permitted exception to "never read skill files before spawning" — Odin is following the skill's own instructions inline, not injecting the file as an agent system prompt.
 
 2. Spawn Freya as a team member:
    ```
