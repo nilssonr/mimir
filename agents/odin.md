@@ -312,14 +312,11 @@ If Agent Teams unavailable: `Task(subagent_type=mimir:frigg, prompt="{task_descr
 
 If a UX spec is available, append to the prompt: `UX spec: $STATE_DIR/ux-spec.md`
 
-Frigg returns a structured line:
-`Plan written to {path}. Steps: {N} | Groups: {M} | Names: {list} | Shared: NONE`
-
-Parse this return value. Do not read spec.md.
+Wait for Frigg's SendMessage to arrive. Frigg delivers its structured metadata via SendMessage to "team-lead" — do not send follow-up messages requesting output. Parse from the `content` field. Do not read spec.md.
 
 ## Phase 4: Dispatch
 
-Parse from Frigg's return: step count, group count, group names, shared files.
+Parse from Frigg's SendMessage content: step count, group count, group names, shared files.
 
 ### Dispatch Decision
 
